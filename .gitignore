@@ -1,0 +1,22 @@
+# Python
+*.pyc
+__pycache__/
+.env
+.venv/
+
+# Node.js
+node_modules/
+
+# Terraform - typical exclusions
+*.tfstate
+*.tfstate.*
+*.tfvars
+.terraform/
+.terraform.lock.hcl
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
