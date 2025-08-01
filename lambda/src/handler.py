@@ -199,6 +199,16 @@ def handle_admin_routes(event, context):
         elif method == 'POST':
             return create_tenant(json.loads(event['body']))
     
+    # Individual tenant KSI config update - THE MISSING ROUTE
+    elif path.endswith('/ksi-config') and method == 'PUT':
+        path_parts = path.split('/')
+        if len(path_parts) >= 5:
+            tenant_id = path_parts[4]
+            body_data = json.loads(event['body'])
+            return update_tenant_ksi_config(tenant_id, body_data)
+        else:
+            return cors_response(400, {'error': 'Invalid tenant KSI config path'})
+    
     # System status
     elif path == '/api/admin/system/status':
         if method == 'GET':
@@ -305,6 +315,35 @@ def get_system_status():
             'scheduling': 'individual_tenant'
         })
     except Exception as e:
+        return cors_response(500, {'error': str(e)})
+
+def update_tenant_ksi_config(tenant_id, config_data):
+    """Update tenant KSI configuration - THE MISSING FUNCTION"""
+    try:
+        logger.info(f"Updating KSI config for tenant: {tenant_id}")
+        logger.info(f"Config data: {config_data}")
+        
+        tenants_table = dynamodb.Table(TENANTS_TABLE)
+        
+        tenants_table.update_item(
+            Key={'tenant_id': tenant_id},
+            UpdateExpression='SET enabled_ksis = :ksis, last_updated = :updated',
+            ExpressionAttributeValues={
+                ':ksis': config_data.get('enabled_ksis', []),
+                ':updated': datetime.now(timezone.utc).isoformat()
+            }
+        )
+        
+        logger.info(f"Successfully updated KSI config for {tenant_id}")
+        
+        return cors_response(200, {
+            'message': 'KSI configuration updated successfully',
+            'tenant_id': tenant_id,
+            'enabled_ksis': config_data.get('enabled_ksis', [])
+        })
+        
+    except Exception as e:
+        logger.error(f"Error updating tenant KSI config: {str(e)}")
         return cors_response(500, {'error': str(e)})
 
 # KSI Validation Routes
