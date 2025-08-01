@@ -97,26 +97,53 @@ const RealKSIManagement = ({ onConfigurationSaved, onNotification }) => {
 
   const loadTenantConfiguration = async () => {
     try {
-      // In real implementation, this would load from ksi-mvp-tenants-dev
-      // For now, simulate based on your actual DynamoDB scan results
-      const simulatedTenantData = {
+      console.log(`🏢 Loading REAL tenant configuration for: ${selectedTenant}`);
+      
+      const apiUrl = 'https://hqen6rb9j1.execute-api.us-gov-west-1.amazonaws.com/dev';
+      
+      // ACTUAL API CALL to get tenant data from DynamoDB
+      const response = await fetch(`${apiUrl}/api/admin/tenants/${selectedTenant}`);
+      
+      if (!response.ok) {
+        console.error(`❌ Failed to load tenant: HTTP ${response.status}`);
+        throw new Error(`Failed to load tenant: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      const tenantData = data.tenant;
+      
+      if (!tenantData) {
+        console.error('❌ No tenant data returned from API');
+        throw new Error('Tenant not found');
+      }
+      
+      console.log('✅ Loaded REAL tenant data from DynamoDB:', {
+        tenant_id: tenantData.tenant_id,
+        organization: tenantData.organization?.name,
+        enabled_ksis_count: tenantData.enabled_ksis?.length || 0,
+        enabled_ksis: tenantData.enabled_ksis
+      });
+      
+      setTenantData(tenantData);
+      
+    } catch (error) {
+      console.error('❌ Error loading tenant configuration:', error);
+      
+      // Fallback to minimal tenant structure if API fails
+      const fallbackTenantData = {
         tenant_id: selectedTenant,
-        organization: { name: 'Longevity Consulting' },
+        organization: { name: 'Unknown Organization' },
         status: 'active',
-        enabled_ksis: ['KSI-MLA-01', 'KSI-MLA-02', 'KSI-SVC-06'], // From your actual scan
+        enabled_ksis: [], // Empty array, not hardcoded values
         preferences: {
           validation_frequency: 'daily',
-          notification_email: 'tony@techvizions.com'
+          notification_email: ''
         },
         ksi_schedule: 'daily'
       };
       
-      setTenantData(simulatedTenantData);
-      console.log('🏢 Loaded tenant configuration:', simulatedTenantData.enabled_ksis);
-      
-    } catch (error) {
-      console.error('Error loading tenant configuration:', error);
-      setTenantData(null);
+      setTenantData(fallbackTenantData);
+      onNotification('Error loading tenant data from API. Using fallback.', 'warning');
     }
   };
 
@@ -226,29 +253,50 @@ const RealKSIManagement = ({ onConfigurationSaved, onNotification }) => {
     try {
       setSaving(true);
       
-      // In real implementation, this would update ksi-mvp-tenants-dev
-      console.log('💾 Saving configuration:', {
-        tenant_id: selectedTenant,
-        enabled_ksis: tenantData?.enabled_ksis,
-        changes: Array.from(pendingChanges)
-      });
-
-      // Simulate API call
       const apiUrl = 'https://hqen6rb9j1.execute-api.us-gov-west-1.amazonaws.com/dev';
-      
-      // This would be a PUT to update the tenant's enabled_ksis
       const updatePayload = {
         tenant_id: selectedTenant,
         enabled_ksis: tenantData?.enabled_ksis || [],
         preferences: tenantData?.preferences || {}
       };
 
-      console.log('📤 Configuration saved:', updatePayload);
+      console.log('💾 Saving configuration:', {
+        tenant_id: selectedTenant,
+        enabled_ksis: tenantData?.enabled_ksis,
+        changes: Array.from(pendingChanges),
+        payload: updatePayload
+      });
 
-      // Clear pending changes
+      // ACTUAL API CALL (not simulation!)
+      const response = await fetch(`${apiUrl}/api/admin/tenants/${selectedTenant}/ksi-config`, {
+        method: 'PUT',
+        headers: { 
+          'Content-Type': 'application/json',
+          'Accept': 'application/json'
+        },
+        body: JSON.stringify(updatePayload)
+      });
+
+      console.log(`📡 API Response status: ${response.status}`);
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Unknown error' }));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Configuration saved successfully:', result);
+
+      // Clear pending changes ONLY after successful save
       setPendingChanges(new Set());
 
-      // Notify parent
+      // Show success notification
+      onNotification(
+        `Configuration saved successfully! ${tenantData?.enabled_ksis?.length || 0} KSIs enabled.`, 
+        'success'
+      );
+
+      // Notify parent component
       onConfigurationSaved({
         enabled_ksis: tenantData?.enabled_ksis?.length || 0,
         updated_count: pendingChanges.size,
@@ -258,12 +306,14 @@ const RealKSIManagement = ({ onConfigurationSaved, onNotification }) => {
       // Emit event for dashboard refresh
       window.dispatchEvent(new CustomEvent('ksi-config-updated'));
 
-      // Reload data to reflect changes
+      // Reload data to reflect changes from server
       await loadAllRealData();
 
     } catch (error) {
-      console.error('Error saving configuration:', error);
+      console.error('❌ Error saving configuration:', error);
       onNotification(`Error saving configuration: ${error.message}`, 'error');
+      
+      // Don't clear pending changes on error so user can retry
     } finally {
       setSaving(false);
     }

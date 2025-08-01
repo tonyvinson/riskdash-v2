@@ -94,27 +94,6 @@ const getLatestResultsPerKSI = (results) => {
   return uniqueResults;
 };
 
-// KSI Family definitions (same as RealKSIManagement)
-const KSI_FAMILIES = {
-  'CNA': { name: 'Cloud Native Architecture', color: 'bg-blue-50 border-blue-200', icon: '🏗️' },
-  'SVC': { name: 'Service Configuration', color: 'bg-green-50 border-green-200', icon: '⚙️' },
-  'IAM': { name: 'Identity & Access Management', color: 'bg-purple-50 border-purple-200', icon: '🔐' },
-  'MLA': { name: 'Monitoring, Logging & Analysis', color: 'bg-orange-50 border-orange-200', icon: '📊' },
-  'CMT': { name: 'Configuration Management & Testing', color: 'bg-indigo-50 border-indigo-200', icon: '🔧' },
-  'PIY': { name: 'Policy and Inventory', color: 'bg-pink-50 border-pink-200', icon: '📋' },
-  'TPR': { name: 'Third Party Resources', color: 'bg-yellow-50 border-yellow-200', icon: '🔗' },
-  'RPL': { name: 'Recovery & Resilience', color: 'bg-red-50 border-red-200', icon: '🔄' },
-  'CED': { name: 'Cybersecurity Education', color: 'bg-teal-50 border-teal-200', icon: '🎓' },
-  'INR': { name: 'Incident & Non-Compliance Response', color: 'bg-gray-50 border-gray-200', icon: '🚨' }
-};
-
-// Extract family from KSI ID (same as RealKSIManagement)
-const extractFamily = (ksiId) => {
-  if (!ksiId) return 'UNK';
-  const parts = ksiId.split('-');
-  return parts.length >= 2 ? parts[1] : 'UNK';
-};
-
 // Function to transform execution data for UI display
 const enhanceExecutionDataForUI = (executions) => {
   console.log('🔧 Enhancing execution data for UI:', executions);
@@ -220,7 +199,7 @@ const generateCLICommands = (execution) => {
   return commands;
 };
 
-const DualDashboard = () => {
+const SimplifiedDashboard = () => {
   const [dashboardData, setDashboardData] = useState({
     status: 'loading',
     lastRun: null,
@@ -275,7 +254,7 @@ const DualDashboard = () => {
       
       // Refresh dashboard data after a short delay
       setTimeout(() => {
-        loadEnhancedData();
+        loadSimplifiedData();
       }, 3000);
       
     } catch (error) {
@@ -306,7 +285,7 @@ const DualDashboard = () => {
       
       // Refresh dashboard data after a short delay
       setTimeout(() => {
-        loadEnhancedData();
+        loadSimplifiedData();
       }, 2000);
       
     } catch (error) {
@@ -334,7 +313,7 @@ const DualDashboard = () => {
 📋 CLI commands will show specific ${category} AWS API calls.`);
       
       setTimeout(() => {
-        loadEnhancedData();
+        loadSimplifiedData();
       }, 3000);
       
     } catch (error) {
@@ -346,14 +325,13 @@ const DualDashboard = () => {
   };
 
   useEffect(() => {
-    console.log('🚀 Enhanced DualDashboard mounted, loading real KSI data...');
-    loadEnhancedData();
+    console.log('🚀 DualDashboard mounted, loading simplified data...');
+    loadSimplifiedData();
   }, []);
 
-  // 🔧 NEW: Enhanced data loading using RealKSIManagement strategy
-  const loadEnhancedData = async () => {
+  const loadSimplifiedData = async () => {
     try {
-      console.log('🔍 Loading enhanced DualDashboard data with real KSI metadata...');
+      console.log('🔍 Loading simplified dashboard data...');
       setLoading(true);
       
       const apiClient = {
@@ -370,79 +348,171 @@ const DualDashboard = () => {
         }
       };
       
-      console.log('📊 Fetching KSI metadata, tenant config, results, and executions...');
-      const [ksisResponse, tenantResponse, resultsResponse, executionsResponse] = await Promise.all([
+      console.log('📊 Fetching KSIs, results, and executions...');
+      const [ksisResponse, resultsResponse, executionsResponse] = await Promise.all([
         apiClient.get('/api/admin/ksi-defaults'),
-        apiClient.get('/api/tenant/config?tenant_id=tenant-0bf4618d').catch(() => ({ enabled_ksis: [] })), // Fallback
         apiClient.get('/api/ksi/results?tenant_id=tenant-0bf4618d'),
         apiClient.get('/api/ksi/executions?tenant_id=tenant-0bf4618d&limit=10')
       ]);
 
-      // 🔧 ENHANCED: Use real KSI metadata from API (same as RealKSIManagement)
+      console.log('💾 Loading KSI preferences from localStorage...');
+      let ksiPreferences = {};
+      let usingSmartCategorization = false;
+      
+      try {
+        const prefsData = localStorage.getItem('ksiPreferences');
+        const managementPrefsData = localStorage.getItem('ksi-management-preferences');
+        
+        if (managementPrefsData) {
+          const managementPrefs = JSON.parse(managementPrefsData);
+          console.log('📋 Found ksi-management-preferences:', managementPrefs);
+          // Convert management preferences to ksiPreferences format
+          if (managementPrefs.automated) {
+            managementPrefs.automated.forEach(ksiId => {
+              ksiPreferences[ksiId] = 'active';
+            });
+          }
+          if (managementPrefs.manual) {
+            managementPrefs.manual.forEach(ksiId => {
+              ksiPreferences[ksiId] = 'manual';
+            });
+          }
+          console.log('✅ Using saved management preferences for', Object.keys(ksiPreferences).length, 'KSIs');
+        } else if (prefsData) {
+          ksiPreferences = JSON.parse(prefsData);
+          console.log('✅ Using saved KSI preferences for', Object.keys(ksiPreferences).length, 'KSIs');
+        } else {
+          console.log('🔧 No saved preferences found - will use smart categorization');
+          usingSmartCategorization = true;
+        }
+      } catch (error) {
+        console.warn('⚠️ Error loading KSI preferences:', error);
+        usingSmartCategorization = true;
+      }
+
       const allKSIs = ksisResponse.available_ksis || ksisResponse.ksi_defaults || ksisResponse.available_ksi || [];
-      const enabledKSIs = tenantResponse.enabled_ksis || ['KSI-MLA-01', 'KSI-MLA-02', 'KSI-SVC-06']; // Fallback to your known enabled KSIs
       const rawResults = resultsResponse.results || [];
       const executions = executionsResponse.executions || [];
       
-      console.log(`📈 Real data loaded: ${allKSIs.length} total KSIs, ${enabledKSIs.length} enabled, ${rawResults.length} raw results, ${executions.length} executions`);
+      // 🔍 DEBUG: Log actual API response structure
+      console.log('🔍 DEBUG - KSI Response Structure:', Object.keys(ksisResponse));
+      console.log('🔍 DEBUG - Available KSI fields:', {
+        available_ksis: ksisResponse.available_ksis?.length || 0,
+        ksi_defaults: ksisResponse.ksi_defaults?.length || 0, 
+        available_ksi: ksisResponse.available_ksi?.length || 0
+      });
+      console.log('🔍 DEBUG - Results count:', rawResults.length);
       
-      // 🔧 Transform KSIs with real metadata (same pattern as RealKSIManagement)
-      const enhancedKSIs = allKSIs.map(ksiObj => ({
-        ksi_id: ksiObj.ksi_id,
-        family: extractFamily(ksiObj.ksi_id),
-        familyInfo: KSI_FAMILIES[extractFamily(ksiObj.ksi_id)] || { 
-          name: 'Unknown', 
-          color: 'bg-gray-50 border-gray-200', 
-          icon: '❓' 
-        },
-        title: ksiObj.title || `${extractFamily(ksiObj.ksi_id)} Rule`,
-        category: ksiObj.category || KSI_FAMILIES[extractFamily(ksiObj.ksi_id)]?.name || 'Unknown',
-        description: ksiObj.description || `Validation rule for ${ksiObj.ksi_id}`,
-        automation_type: ksiObj.automation_type || 'manual',
-        status: ksiObj.status || 'active',
-        validation_steps: ksiObj.validation_steps || 0,
-        isEnabled: enabledKSIs.includes(ksiObj.ksi_id)
-      }));
-
-      // 🔧 CLEAN CATEGORIZATION: Use real automation_type from API
-      const automatedKSIs = enhancedKSIs.filter(ksi => 
-        ksi.isEnabled && (
-          ksi.automation_type === 'fully_automated' || 
-          ksi.automation_type === 'partially_automated' ||
-          ksi.validation_steps > 0
-        )
-      );
-      
-      const manualKSIs = enhancedKSIs.filter(ksi => 
-        ksi.isEnabled && ksi.automation_type === 'manual' && ksi.validation_steps === 0
-      );
-
-      console.log(`✅ Real categorization: ${automatedKSIs.length} automated, ${manualKSIs.length} manual (based on actual automation_type from API)`);
-
-      // 🔍 Deduplicate results
+      // 🔧 CRITICAL FIX: Deduplicate results to get unique KSIs only
       const results = getLatestResultsPerKSI(rawResults);
       
-      // Calculate stats based on enabled KSIs only
-      const enabledResults = results.filter(result => enabledKSIs.includes(result.ksi_id));
-      const passedKSIs = enabledResults.filter(r => r.assertion === true || r.assertion === "true").length;
-      const failedKSIs = enabledResults.filter(r => r.assertion === false || r.assertion === "false").length;
-      const pendingKSIs = Math.max(0, enabledKSIs.length - enabledResults.length);
+      // 🔧 FALLBACK: If no KSI metadata, create from results
+      let finalKSIsList = allKSIs;
+      if (allKSIs.length === 0 && results.length > 0) {
+        console.log('🔧 FALLBACK: Creating KSI list from results since metadata is empty');
+        finalKSIsList = results.map(result => ({
+          ksi_id: result.ksi_id,
+          title: result.title || `KSI ${result.ksi_id}`,
+          category: result.category || 'Unknown'
+        }));
+        console.log('✅ Created', finalKSIsList.length, 'KSIs from results');
+      }
+      
+      console.log(`📈 Data loaded: ${finalKSIsList.length} KSIs, ${rawResults.length} raw results → ${results.length} unique results, ${executions.length} executions`);
+      
+      const totalKSIs = finalKSIsList.length;
+      let activeKSIsList = [];
+      let smartCategorizationResults = { automated: 0, manual: 0 };
+      
+      if (usingSmartCategorization || Object.keys(ksiPreferences).length === 0) {
+        console.log('🧠 Using SMART CATEGORIZATION logic...');
+        
+        // Check if user requested lower threshold
+        const useLowerThreshold = localStorage.getItem('use-lower-threshold') === 'true';
+        const automatedThreshold = useLowerThreshold ? 3 : 5;
+        console.log(`🎯 Using automated threshold: ≥${automatedThreshold} commands`);
+        
+        finalKSIsList.forEach(ksi => {
+          const result = results.find(r => r.ksi_id === ksi.ksi_id);
+          const commandsExecuted = parseInt(result?.commands_executed || 0);
+          const ksiId = ksi.ksi_id || '';
+          
+          // Smart categorization logic with configurable threshold
+          let category = 'manual';  // Default to manual
+          let reason = 'No commands executed';
+          
+          if (commandsExecuted === 0) {
+            category = 'manual';
+            reason = 'Never executed';
+          } else if (ksiId.includes('POL') || ksiId.includes('DOC') || ksiId.includes('PROC')) {
+            category = 'manual';
+            reason = 'Policy/Documentation KSI';
+          } else if (commandsExecuted >= (automatedThreshold * 2)) {
+            category = 'automated';
+            reason = `High command activity (≥${automatedThreshold * 2})`;
+          } else if (commandsExecuted >= automatedThreshold) {
+            category = 'automated';
+            reason = `Moderate command activity (≥${automatedThreshold})`;
+          } else if (commandsExecuted >= 1) {
+            category = 'manual';
+            reason = `Low activity (${commandsExecuted} commands) - likely testing`;
+          }
+          
+          console.log(`🔧 Smart categorization: ${ksiId}: ${commandsExecuted} commands → ${category} (${reason})`);
+          
+          if (category === 'automated') {
+            activeKSIsList.push(ksi.ksi_id);
+            smartCategorizationResults.automated++;
+          } else {
+            smartCategorizationResults.manual++;
+          }
+        });
+        
+        console.log('✅ Smart categorization complete:', smartCategorizationResults);
+      } else {
+        console.log('📋 Using SAVED PREFERENCES (this might be the problem!)...');
+        
+        activeKSIsList = finalKSIsList.filter(ksi => {
+          const pref = ksiPreferences[ksi.ksi_id] || 'active';
+          const isActive = pref === 'active';
+          console.log(`📋 ${ksi.ksi_id}: preference=${pref}, active=${isActive}`);
+          return isActive;
+        }).map(ksi => ksi.ksi_id);
+        
+        console.log('⚠️ WARNING: Using saved preferences resulted in', activeKSIsList.length, 'active KSIs (probably too many!)');
+      }
 
-      const compliance = enabledResults.length > 0 ? 
-        Math.min(100, Math.round((passedKSIs / enabledResults.length) * 100)) : 0;
+      // Filter results to only those for active (automated) KSIs
+      const activeResults = results.filter(result => activeKSIsList.includes(result.ksi_id));
 
-      const lastRun = enabledResults.length > 0 ? 
-        enabledResults.reduce((latest, current) => 
+      const passedActiveKSIs = activeResults.filter(r => r.assertion === true || r.assertion === "true").length;
+      const failedActiveKSIs = activeResults.filter(r => r.assertion === false || r.assertion === "false").length;
+      const ksisWithResults = new Set();
+      results.forEach(result => {
+        if (result.commands_executed && parseInt(result.commands_executed) > 0) {
+          ksisWithResults.add(result.ksi_id);
+        }
+      });
+
+      const totalActiveWithResults = passedActiveKSIs + failedActiveKSIs;
+      const compliance = totalActiveWithResults > 0 ? 
+        Math.min(100, Math.round((passedActiveKSIs / totalActiveWithResults) * 100)) : 0;
+      const pendingActiveKSIs = Math.max(0, activeKSIsList.length - activeResults.length);
+      const overallCompliance = results.length > 0 ? 
+        Math.round((results.filter(r => r.assertion === true || r.assertion === "true").length / results.length) * 100) : 0;
+      const overallPassed = results.filter(r => r.assertion === true || r.assertion === "true").length;
+      const overallFailed = results.filter(r => r.assertion === false || r.assertion === "false").length;
+      const lastRun = activeResults.length > 0 ? 
+        activeResults.reduce((latest, current) => 
           new Date(current.timestamp) > new Date(latest.timestamp) ? current : latest
         ).timestamp : null;
 
       console.log('🔧 Enhancing execution data for UI display...');
       const enhancedExecutions = enhanceExecutionDataForUI(executions);
       const lastExecutionDetails = enhancedExecutions.length > 0 ? enhancedExecutions[0] : null;
-      
-      const status = failedKSIs > 0 ? 'critical' : (pendingKSIs > 0 ? 'warning' : 'healthy');
+      const status = failedActiveKSIs > 0 ? 'critical' : (pendingActiveKSIs > 0 ? 'warning' : 'healthy');
 
-      const priorityItems = enabledResults
+      const priorityItems = activeResults
         .filter(r => r.assertion === false || r.assertion === "false")
         .map(r => ({
           ksi_id: r.ksi_id,
@@ -452,8 +522,8 @@ const DualDashboard = () => {
           isPending: false
         }))
         .concat(
-          enabledKSIs
-            .filter(ksi => !enabledResults.find(r => r.ksi_id === ksi))
+          activeKSIsList
+            .filter(ksi => !activeResults.find(r => r.ksi_id === ksi))
             .map(ksi => ({
               ksi_id: ksi,
               issue: 'KSI enabled but not yet validated',
@@ -467,51 +537,66 @@ const DualDashboard = () => {
         status,
         lastRun,
         compliance,
-        issuesCount: failedKSIs + pendingKSIs,
-        totalKSIs: enabledKSIs.length,
-        passedKSIs,
-        failedKSIs,
-        pendingKSIs,
-        activeKSIs: automatedKSIs.length,
-        manualKSIs: manualKSIs.length,
-        disabledKSIs: allKSIs.length - enabledKSIs.length,
+        issuesCount: failedActiveKSIs + pendingActiveKSIs,
+        totalKSIs: activeKSIsList.length,
+        passedKSIs: passedActiveKSIs,
+        failedKSIs: failedActiveKSIs,
+        pendingKSIs: pendingActiveKSIs,
+        activeKSIs: activeKSIsList.length,
+        manualKSIs: usingSmartCategorization ? smartCategorizationResults.manual : (totalKSIs - activeKSIsList.length),
+        disabledKSIs: 0,
         executionHistory: enhancedExecutions,
         lastExecutionDetails,
         automatedCompliance: compliance,
-        overallCompliance: results.length > 0 ? 
-          Math.round((results.filter(r => r.assertion === true || r.assertion === "true").length / results.length) * 100) : 0,
-        overallTotalKSIs: allKSIs.length,
-        overallPassedKSIs: results.filter(r => r.assertion === true || r.assertion === "true").length,
-        overallFailedKSIs: results.filter(r => r.assertion === false || r.assertion === "false").length,
+        overallCompliance,
+        overallTotalKSIs: totalKSIs,
+        overallPassedKSIs: overallPassed,
+        overallFailedKSIs: overallFailed,
         priorityItems,
-        // 🔧 ENHANCED: Real KSI data for reference
-        realKSIData: {
-          total: allKSIs.length,
-          enabled: enabledKSIs.length,
-          automated: automatedKSIs.length,
-          manual: manualKSIs.length,
-          withResults: results.length,
+        // 🔧 ALL VALIDATION RESULTS (not just active ones)
+        allValidationResults: {
+          total: results.length,
+          passed: results.filter(r => r.assertion === true || r.assertion === "true").length,
+          failed: results.filter(r => r.assertion === false || r.assertion === "false").length,
           recentResults: results.filter(r => {
             if (!r.timestamp) return false;
             const resultTime = new Date(r.timestamp);
             const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
             return resultTime > thirtyMinutesAgo;
           }).length
+        },
+        // 🔧 DEBUGGING INFO
+        _debug: {
+          rawResultsCount: rawResults.length,
+          uniqueResultsCount: results.length,
+          deduplicationSaved: rawResults.length - results.length,
+          categorization: usingSmartCategorization ? {
+            type: 'SMART_CATEGORIZATION',
+            automated: smartCategorizationResults.automated,
+            manual: smartCategorizationResults.manual,
+            threshold: localStorage.getItem('use-lower-threshold') === 'true' ? 3 : 5,
+            logic: `Smart categorization: ≥${localStorage.getItem('use-lower-threshold') === 'true' ? 3 : 5} commands = automated`
+          } : {
+            type: 'SAVED_PREFERENCES',
+            automated: activeKSIsList.length,
+            manual: totalKSIs - activeKSIsList.length,
+            warning: 'Using saved preferences - may be inaccurate! Click reset button above.'
+          }
         }
       };
 
-      console.log('✅ Enhanced DualDashboard data compiled successfully:', {
+      console.log('✅ Dashboard data compiled successfully:', {
         status: finalData.status,
         compliance: finalData.compliance,
         executions: finalData.executionHistory.length,
         issues: finalData.issuesCount,
-        realData: finalData.realKSIData
+        debugInfo: finalData._debug
       });
 
       setDashboardData(finalData);
       
     } catch (error) {
-      console.error('❌ Error loading enhanced DualDashboard data:', error);
+      console.error('❌ Error loading dashboard data:', error);
       setDashboardData({
         status: 'critical',
         lastRun: null,
@@ -530,7 +615,7 @@ const DualDashboard = () => {
       });
     } finally {
       setLoading(false);
-      console.log('🏁 DualDashboard loading complete');
+      console.log('🏁 Dashboard loading complete');
     }
   };
 
@@ -542,8 +627,8 @@ const DualDashboard = () => {
 
   const handleKSIManagementSave = (preferences) => {
     console.log('💾 Saving KSI preferences:', Object.keys(preferences).length);
-    // Note: This would now integrate with the real tenant config API
-    loadEnhancedData();
+    localStorage.setItem('ksiPreferences', JSON.stringify(preferences));
+    loadSimplifiedData();
     setShowKSIManagement(false);
   };
 
@@ -561,41 +646,121 @@ const DualDashboard = () => {
   };
 
   if (loading) {
-    console.log('⏳ DualDashboard is loading...');
+    console.log('⏳ Dashboard is loading...');
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
-        <span className="ml-2">Loading DualDashboard...</span>
+        <span className="ml-2">Loading dashboard...</span>
       </div>
     );
   }
 
-  console.log('🎨 Rendering DualDashboard with real KSI data:', {
+  console.log('🎨 Rendering dashboard with data:', {
     status: dashboardData.status,
     executionHistory: dashboardData.executionHistory.length,
     selectedView,
-    realData: dashboardData.realKSIData
+    debugInfo: dashboardData._debug
   });
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
-      {/* 📊 ENHANCED: Real KSI Data Summary */}
-      {dashboardData.realKSIData && (
+      {/* 🔧 DEBUG INFO - Remove in production */}
+      {dashboardData._debug && (
+        <div className={`mb-4 p-3 border rounded text-sm ${
+          dashboardData._debug.categorization.type === 'SMART_CATEGORIZATION' 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <strong>🔧 Debug Info:</strong> Raw results: {dashboardData._debug.rawResultsCount} → 
+          Unique results: {dashboardData._debug.uniqueResultsCount} 
+          (Saved {dashboardData._debug.deduplicationSaved} duplicates)
+          <br />
+          <strong>📊 Categorization:</strong> {dashboardData._debug.categorization.type} - 
+          {dashboardData._debug.categorization.automated} automated, 
+          {dashboardData._debug.categorization.manual} manual
+          {dashboardData._debug.categorization.warning && (
+            <div className="text-yellow-700 mt-1">
+              ⚠️ {dashboardData._debug.categorization.warning}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🎯 SMART CATEGORIZATION STATUS */}
+      {dashboardData._debug?.categorization?.type === 'SMART_CATEGORIZATION' && dashboardData.activeKSIs <= 10 ? (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-green-800 mb-1">✅ Real KSI Data Loaded</h3>
+              <h3 className="font-semibold text-green-800 mb-1">✅ Smart Categorization Active</h3>
               <p className="text-sm text-green-600">
-                Using actual DynamoDB metadata: {dashboardData.realKSIData.total} total KSIs, 
-                {dashboardData.realKSIData.enabled} enabled, 
-                {dashboardData.realKSIData.automated} automated
+                {dashboardData.activeKSIs} automated KSIs detected - this is realistic for FedRAMP!
               </p>
             </div>
             <div className="flex gap-2">
               <button 
                 onClick={() => {
-                  console.log('🔄 Force refreshing DualDashboard data...');
-                  loadEnhancedData();
+                  if (window.confirm('Lower threshold to ≥3 commands to show more KSIs as automated?\n\nThis will increase your automated KSI count and compliance percentage.')) {
+                    localStorage.setItem('use-lower-threshold', 'true');
+                    loadSimplifiedData();
+                  }
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                📈 Show More KSIs
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : dashboardData.activeKSIs > 15 ? (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-red-800 mb-1">🚨 Too Many Automated KSIs</h3>
+              <p className="text-sm text-red-700">
+                {dashboardData.activeKSIs} automated KSIs seems too high - most should be manual policy checks
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  if (window.confirm('Reset to smart categorization with ≥5 command threshold?\n\nThis will give you more realistic KSI categorization.')) {
+                    localStorage.removeItem('ksiPreferences');
+                    localStorage.removeItem('ksi-management-preferences');
+                    localStorage.removeItem('use-lower-threshold');
+                    loadSimplifiedData();
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+              >
+                🔄 Reset to Smart Logic
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-blue-800 mb-1">📈 Recent Validation Activity</h3>
+              <p className="text-sm text-blue-600">Check if your validation created new results</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📊 ALL VALIDATION RESULTS SUMMARY */}
+      {dashboardData.allValidationResults && (
+        <div className="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-800">📊 Complete Validation Results</h3>
+              <p className="text-sm text-gray-600">All KSIs across the entire system (not just dashboard tracking)</p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  console.log('🔄 Force refreshing dashboard data...');
+                  loadSimplifiedData();
                 }}
                 className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
               >
@@ -603,13 +768,34 @@ const DualDashboard = () => {
               </button>
               <button 
                 onClick={() => {
-                  const data = dashboardData.realKSIData;
-                  alert(`📊 REAL KSI DATA SUMMARY:\n\n📋 ${data.total} Total KSIs in system\n✅ ${data.enabled} Enabled for tenant\n🤖 ${data.automated} Automated validations\n👤 ${data.manual} Manual policy checks\n📊 ${data.withResults} KSIs with results\n🕐 ${data.recentResults} Recent results (30min)\n\n${data.recentResults > 0 ? '✅ Recent validation activity detected!' : '⚠️ No recent results - run validation to see updates'}\n\nDashboard shows ${dashboardData.activeKSIs} automated KSIs based on real automation_type from API.`);
+                  const allResults = dashboardData.allValidationResults;
+                  alert(`📊 ALL VALIDATION RESULTS:\n\n✅ ${allResults.passed} KSIs PASSED\n❌ ${allResults.failed} KSIs FAILED\n📋 ${allResults.total} Total KSIs with results\n🕐 ${allResults.recentResults} Recent results (30min)\n\n${allResults.recentResults > 0 ? '✅ Your validation DID work!' : '⚠️ No recent results - validation may not have completed'}\n\nDashboard only shows ${dashboardData.activeKSIs} "automated" KSIs due to smart categorization.`);
                 }}
                 className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
               >
                 📋 Details
               </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="p-3 bg-green-50 rounded">
+              <div className="text-2xl font-bold text-green-600">{dashboardData.allValidationResults.passed}</div>
+              <div className="text-sm text-gray-600">All KSIs Passed</div>
+            </div>
+            <div className="p-3 bg-red-50 rounded">
+              <div className="text-2xl font-bold text-red-600">{dashboardData.allValidationResults.failed}</div>
+              <div className="text-sm text-gray-600">All KSIs Failed</div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded">
+              <div className="text-2xl font-bold text-blue-600">{dashboardData.allValidationResults.total}</div>
+              <div className="text-sm text-gray-600">Total with Results</div>
+            </div>
+            <div className="p-3 bg-purple-50 rounded">
+              <div className="text-2xl font-bold text-purple-600">{dashboardData.allValidationResults.recentResults}</div>
+              <div className="text-sm text-gray-600">Recent (30min)</div>
+              {dashboardData.allValidationResults.recentResults > 0 && (
+                <div className="text-xs text-green-600 font-medium">✅ Validation worked!</div>
+              )}
             </div>
           </div>
         </div>
@@ -716,13 +902,13 @@ const DualDashboard = () => {
         <div className="bg-white rounded-lg p-6 text-center border shadow-sm">
           <div className="text-3xl font-bold text-purple-600">{dashboardData.compliance}%</div>
           <div className="text-gray-600">🎯 Compliance</div>
-          <div className="text-xs text-gray-500 mt-1">Enabled KSIs</div>
+          <div className="text-xs text-gray-500 mt-1">Active KSIs only</div>
         </div>
         <div className="bg-white rounded-lg p-6 text-center border shadow-sm">
-          <div className="text-lg font-bold text-green-600">{dashboardData.activeKSIs}</div>
-          <div className="text-lg font-bold text-gray-400">{dashboardData.manualKSIs}</div>
-          <div className="text-gray-600">🤖 Automated</div>
+          <div className="text-lg font-bold text-yellow-600">{dashboardData.manualKSIs}</div>
+          <div className="text-lg font-bold text-gray-400">{dashboardData.disabledKSIs}</div>
           <div className="text-gray-600">📋 Manual</div>
+          <div className="text-gray-600">⏸️ Disabled</div>
         </div>
       </div>
 
@@ -768,7 +954,7 @@ const DualDashboard = () => {
                       All Security Checks Passing!
                     </h3>
                     <p className="text-green-600">
-                      {dashboardData.passedKSIs} of {dashboardData.totalKSIs} enabled KSIs are compliant
+                      {dashboardData.passedKSIs} of {dashboardData.totalKSIs} active KSIs are compliant
                     </p>
                   </div>
                 ) : dashboardData.status === 'warning' ? (
@@ -778,7 +964,7 @@ const DualDashboard = () => {
                       Some Issues Need Attention
                     </h3>
                     <p className="text-yellow-600">
-                      {dashboardData.issuesCount} issues found across {dashboardData.totalKSIs} enabled KSIs
+                      {dashboardData.issuesCount} issues found across {dashboardData.totalKSIs} active KSIs
                     </p>
                   </div>
                 ) : (
@@ -799,11 +985,7 @@ const DualDashboard = () => {
                   <h4 className="font-medium mb-2">📊 Compliance Overview</h4>
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
-                      <span>Enabled KSIs:</span>
-                      <span className="font-medium">{dashboardData.totalKSIs}</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Automated KSIs:</span>
+                      <span>Active KSIs:</span>
                       <span className="font-medium">{dashboardData.activeKSIs}</span>
                     </div>
                     <div className="flex justify-between">
@@ -822,8 +1004,7 @@ const DualDashboard = () => {
                   <div className="space-y-2 text-sm">
                     <div>Last Validation: {formatTimeAgo(dashboardData.lastRun)}</div>
                     <div>Executions Today: {dashboardData.executionHistory.length}</div>
-                    <div>Total KSIs in System: {dashboardData.overallTotalKSIs}</div>
-                    <div>Recent Results: {dashboardData.realKSIData?.recentResults || 0}</div>
+                    <div>Total Validations: {dashboardData.overallTotalKSIs}</div>
                   </div>
                 </div>
               </div>
@@ -869,7 +1050,7 @@ const DualDashboard = () => {
                 <div className="text-center py-12">
                   <div className="text-4xl mb-4">✅</div>
                   <h3 className="text-xl font-semibold text-green-600 mb-2">No Issues Found</h3>
-                  <p className="text-gray-500">All enabled KSIs are passing their validations.</p>
+                  <p className="text-gray-500">All active KSIs are passing their validations.</p>
                 </div>
               ) : (
                 <>
@@ -1197,4 +1378,4 @@ const DualDashboard = () => {
   );
 };
 
-export default DualDashboard;
+export default SimplifiedDashboard;

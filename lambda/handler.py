@@ -185,101 +185,75 @@ def handle_admin_routes(event, context):
     path = event.get('path', '')
     method = event.get('httpMethod', '')
     
-    logger.info(f"🔍 Admin route: {method} {path}")
+    logger.info(f"Admin route: {method} {path}")
     
-    try:
-        # 🚀 ONBOARDING WORKFLOW ENDPOINTS
-        if path == '/api/admin/onboarding/start':
-            if method == 'POST':
-                logger.info("🔍 Matched onboarding start route")
-                return start_tenant_onboarding(json.loads(event['body']))
-        
-        elif '/api/admin/onboarding/' in path:
-            logger.info("🔍 Matched onboarding sub-route")
-            # Extract tenant_id from path like /api/admin/onboarding/{tenant-id}/step
-            path_parts = path.split('/')
-            if len(path_parts) >= 5:
-                tenant_id = path_parts[4]
-                endpoint = path_parts[5] if len(path_parts) > 5 else ''
-                
-                if endpoint == 'step':
-                    if method == 'PUT':
-                        return update_onboarding_step(tenant_id, json.loads(event['body']))
-                    elif method == 'GET':
-                        return get_onboarding_status(tenant_id)
-                
-                elif endpoint == 'iam-instructions':
-                    if method == 'GET':
-                        return generate_iam_role_instructions(tenant_id)
-                
-                elif endpoint == 'test-connection':
-                    if method == 'POST':
-                        return test_cross_account_connection(tenant_id)
-                
-                elif endpoint == 'complete':
-                    if method == 'POST':
-                        return complete_tenant_onboarding(tenant_id)
-        
-        # KSI Defaults endpoint
-        elif path == '/api/admin/ksi-defaults':
-            if method == 'GET':
-                logger.info("🔍 Matched KSI defaults route")
-                return get_ksi_defaults()
-        
-        # Tenants management (plural - list all)
-        elif path == '/api/admin/tenants':
-            logger.info("🔍 Matched tenants plural route")
-            if method == 'GET':
-                return get_all_tenants()
-            elif method == 'POST':
-                return create_tenant(json.loads(event['body']))
-        
-        # Individual tenant routes (singular)
-        elif '/api/admin/tenants/' in path:
-            logger.info(f"🔍 Matched individual tenant route: {path}")
-            path_parts = path.split('/')
-            logger.info(f"🔍 Path parts: {path_parts}, Length: {len(path_parts)}")
+    # 🚀 ONBOARDING WORKFLOW ENDPOINTS
+    if path == '/api/admin/onboarding/start':
+        if method == 'POST':
+            return start_tenant_onboarding(json.loads(event['body']))
+    
+    elif '/api/admin/onboarding/' in path:
+        # Extract tenant_id from path like /api/admin/onboarding/{tenant-id}/step
+        path_parts = path.split('/')
+        if len(path_parts) >= 5:
+            tenant_id = path_parts[4]
+            endpoint = path_parts[5] if len(path_parts) > 5 else ''
             
-            if len(path_parts) >= 5:
-                tenant_id = path_parts[4]
-                logger.info(f"🔍 Extracted tenant_id: {tenant_id}")
-                
-                # Individual tenant KSI config update
-                if path.endswith('/ksi-config') and method == 'PUT':
-                    logger.info(f"🔍 Matched KSI config route for tenant {tenant_id}")
-                    body_data = json.loads(event['body'])
-                    return update_tenant_ksi_config(tenant_id, body_data)
-                
-                # Other tenant routes
-                elif method == 'PUT':
-                    logger.info(f"🔍 Matched PUT tenant route for {tenant_id}")
-                    return update_tenant(tenant_id, json.loads(event['body']))
+            if endpoint == 'step':
+                if method == 'PUT':
+                    return update_onboarding_step(tenant_id, json.loads(event['body']))
                 elif method == 'GET':
-                    logger.info(f"🔍 Matched GET tenant route for {tenant_id} - calling get_tenant_details")
-                    return get_tenant_details(tenant_id)
-                elif method == 'DELETE':
-                    logger.info(f"🔍 Matched DELETE tenant route for {tenant_id}")
-                    return delete_tenant(tenant_id)
-                else:
-                    logger.info(f"🔍 No method match for {method} on tenant route")
-            else:
-                logger.info(f"🔍 Path parts too short: {len(path_parts)}, expected >= 5")
-        
-        # System status
-        elif path == '/api/admin/system/status':
-            if method == 'GET':
-                logger.info("🔍 Matched system status route")
-                return get_system_status()
-        
-        logger.info(f"🔍 No route matched for: {method} {path}")
-        return cors_response(404, {'error': f'Admin route not found: {path}'})
-        
-    except Exception as e:
-        logger.error(f"❌ Exception in handle_admin_routes: {str(e)}")
-        logger.error(f"❌ Exception type: {type(e)}")
-        import traceback
-        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
-        return cors_response(500, {'error': f'Admin route error: {str(e)}'})
+                    return get_onboarding_status(tenant_id)
+            
+            elif endpoint == 'iam-instructions':
+                if method == 'GET':
+                    return generate_iam_role_instructions(tenant_id)
+            
+            elif endpoint == 'test-connection':
+                if method == 'POST':
+                    return test_cross_account_connection(tenant_id)
+            
+            elif endpoint == 'complete':
+                if method == 'POST':
+                    return complete_tenant_onboarding(tenant_id)
+    
+    # KSI Defaults endpoint
+    elif path == '/api/admin/ksi-defaults':
+        if method == 'GET':
+            return get_ksi_defaults()
+    
+    # Tenants management
+    elif path == '/api/admin/tenants':
+        if method == 'GET':
+            return get_all_tenants()
+        elif method == 'POST':
+            return create_tenant(json.loads(event['body']))
+    
+    # Individual tenant routes
+    elif '/api/admin/tenants/' in path:
+        path_parts = path.split('/')
+        if len(path_parts) >= 5:
+            tenant_id = path_parts[4]
+            
+            # Individual tenant KSI config update - THE MISSING ROUTE
+            if path.endswith('/ksi-config') and method == 'PUT':
+                body_data = json.loads(event['body'])
+                return update_tenant_ksi_config(tenant_id, body_data)
+            
+            # Other tenant routes
+            elif method == 'PUT':
+                return update_tenant(tenant_id, json.loads(event['body']))
+            elif method == 'GET':
+                return get_tenant_details(tenant_id)
+            elif method == 'DELETE':
+                return delete_tenant(tenant_id)
+    
+    # System status
+    elif path == '/api/admin/system/status':
+        if method == 'GET':
+            return get_system_status()
+    
+    return cors_response(404, {'error': f'Admin route not found: {path}'})
 
 # ============================================================================
 # 7-STEP ONBOARDING IMPLEMENTATION - RESTORED!
@@ -773,33 +747,18 @@ def create_tenant(tenant_data):
         return cors_response(500, {'error': str(e)})
 
 def get_tenant_details(tenant_id):
-    """Get tenant details - WITH DEBUG LOGGING"""
+    """Get tenant details"""
     try:
-        logger.info(f"🔍 get_tenant_details called for tenant_id: {tenant_id}")
-        
         tenants_table = dynamodb.Table(TENANTS_TABLE)
-        logger.info(f"🔍 DynamoDB table: {TENANTS_TABLE}")
-        
-        logger.info(f"🔍 Calling get_item with Key: {{'tenant_id': '{tenant_id}'}}")
         response = tenants_table.get_item(Key={'tenant_id': tenant_id})
-        logger.info(f"🔍 DynamoDB response keys: {list(response.keys())}")
         
         if 'Item' in response:
-            tenant_item = response['Item']
-            logger.info(f"🔍 Found tenant item with keys: {list(tenant_item.keys())}")
-            logger.info(f"🔍 Tenant organization: {tenant_item.get('organization', {})}")
-            logger.info(f"🔍 Tenant enabled_ksis count: {len(tenant_item.get('enabled_ksis', []))}")
-            
-            return cors_response(200, {'tenant': tenant_item})
+            return cors_response(200, {'tenant': response['Item']})
         else:
-            logger.info(f"🔍 No Item found in response for tenant_id: {tenant_id}")
             return cors_response(404, {'error': 'Tenant not found'})
             
     except Exception as e:
-        logger.error(f"❌ Error in get_tenant_details: {str(e)}")
-        logger.error(f"❌ Exception type: {type(e)}")
-        import traceback
-        logger.error(f"❌ Full traceback: {traceback.format_exc()}")
+        logger.error(f"Error getting tenant details: {str(e)}")
         return cors_response(500, {'error': str(e)})
 
 def update_tenant(tenant_id, tenant_data):
