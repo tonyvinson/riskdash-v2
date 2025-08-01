@@ -1,0 +1,787 @@
+{
+  "backup_timestamp": "2025-08-01T00:40:10.383771",
+  "table_name": "ksi-mvp-executions-dev",
+  "cleanup_reason": "Data quality cleanup - corrupt/incomplete records",
+  "total_records": 36,
+  "records": [
+    {
+      "record": {
+        "trigger_source": "frontend_selective",
+        "ksis_validated": 1,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753931410-e8d9a92c",
+        "status": "completed",
+        "timestamp": "2025-07-31T03:10:10.795887+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "api",
+        "ksis_validated": 1,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754017022-2b43bded",
+        "status": "completed",
+        "timestamp": "2025-08-01T02:57:02.458853+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "manual_test",
+        "ksis_validated": 1,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016211-541ab8ef",
+        "status": "completed",
+        "timestamp": "2025-08-01T02:43:31.526843+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 3,
+        "assertion_reason": "\u2705 Network Segmentation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016211-541ab8ef",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:31.545087+00:00",
+        "ksi_id": "KSI-CNA-01",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 3,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "manual_test",
+        "ksis_validated": 51,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "status": "completed",
+        "timestamp": "2025-08-01T02:43:07.226918+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Multi-Factor Authentication validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.281671+00:00",
+        "ksi_id": "KSI-IAM-03",
+        "category": "Identity & Access Management",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Session Management validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.307824+00:00",
+        "ksi_id": "KSI-IAM-05",
+        "category": "Identity & Access Management",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Vulnerability Detection & Remediation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.332331+00:00",
+        "ksi_id": "KSI-MLA-03",
+        "category": "Monitoring, Logging & Alerting",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Identity Federation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.361642+00:00",
+        "ksi_id": "KSI-IAM-06",
+        "category": "Identity & Access Management",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Firewall Configuration validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.407910+00:00",
+        "ksi_id": "KSI-CNA-02",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Service Monitoring Configuration validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.421658+00:00",
+        "ksi_id": "KSI-SVC-07",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Remote Access Security validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.451633+00:00",
+        "ksi_id": "KSI-CNA-03",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Service Account Management validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.466110+00:00",
+        "ksi_id": "KSI-SVC-04",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Access Control Policies validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.472080+00:00",
+        "ksi_id": "KSI-IAM-04",
+        "category": "Identity & Access Management",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 API Security Configuration validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.486171+00:00",
+        "ksi_id": "KSI-SVC-05",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 3,
+        "assertion_reason": "\u2705 Network Segmentation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.511554+00:00",
+        "ksi_id": "KSI-CNA-01",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 3,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Vulnerability Tracking & Prioritization validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.581650+00:00",
+        "ksi_id": "KSI-MLA-06",
+        "category": "Monitoring, Logging & Alerting",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 1,
+        "assertion_reason": "\u2705 Wireless Security Controls validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.587595+00:00",
+        "ksi_id": "KSI-CNA-04",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 1,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Infrastructure as Code Testing validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.601661+00:00",
+        "ksi_id": "KSI-MLA-05",
+        "category": "Monitoring, Logging & Alerting",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Boundary Protection Systems validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.632035+00:00",
+        "ksi_id": "KSI-CNA-06",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Network Monitoring Capabilities validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.646266+00:00",
+        "ksi_id": "KSI-CNA-05",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Secure Service Configuration validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.706512+00:00",
+        "ksi_id": "KSI-SVC-01",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Architecture Documentation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.721670+00:00",
+        "ksi_id": "KSI-CNA-07",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Default Configuration Review validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.727533+00:00",
+        "ksi_id": "KSI-SVC-03",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Service Hardening Standards validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.741673+00:00",
+        "ksi_id": "KSI-SVC-02",
+        "category": "Service Configuration",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 3,
+        "assertion_reason": "\u2705 User Account Management validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.761650+00:00",
+        "ksi_id": "KSI-IAM-01",
+        "category": "Identity & Access Management",
+        "successful_commands": 3,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Privileged Access Management validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.767298+00:00",
+        "ksi_id": "KSI-IAM-02",
+        "category": "Identity & Access Management",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Authenticated Vulnerability Scanning validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754016187-f73baac4",
+        "failed_commands": 0,
+        "timestamp": "2025-08-01T02:43:07.785263+00:00",
+        "ksi_id": "KSI-MLA-04",
+        "category": "Monitoring, Logging & Alerting",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "api",
+        "ksis_validated": 1,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754017169-24e858ad",
+        "status": "completed",
+        "timestamp": "2025-08-01T02:59:29.537549+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "api",
+        "ksis_validated": 3,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754019162-b5385261",
+        "status": "completed",
+        "timestamp": "2025-08-01T03:32:42.696307+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": false,
+        "commands_executed": 3,
+        "assertion_reason": "\u274c Network Segmentation validation failed (1 critical checks failed)",
+        "cli_command_details": [
+          "aws ec2 describe-vpcs --output json"
+        ],
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1754019162-b5385261",
+        "failed_commands": 1,
+        "timestamp": "2025-08-01T03:32:45.196253+00:00",
+        "ksi_id": "KSI-CNA-01",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 0,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [],
+        "warning": [
+          "CLI commands count mismatch: 1 vs 3"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "frontend_selective",
+        "ksis_validated": 1,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753937853-08a69292",
+        "status": "completed",
+        "timestamp": "2025-07-31T04:57:33.838140+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 2,
+        "assertion_reason": "\u2705 Infrastructure as Code Testing validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753937853-08a69292",
+        "failed_commands": 0,
+        "timestamp": "2025-07-31T04:57:33.858396+00:00",
+        "ksi_id": "KSI-MLA-05",
+        "category": "Monitoring, Logging & Alerting",
+        "successful_commands": 2,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "trigger_source": "cli_test",
+        "ksis_validated": 4,
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753933962-b68fdd44",
+        "status": "completed",
+        "timestamp": "2025-07-31T03:52:42.831133+00:00"
+      },
+      "issues": {
+        "critical": [
+          "Missing ksi_id",
+          "Missing assertion field"
+        ],
+        "warning": [
+          "Missing assertion reasoning"
+        ],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 3,
+        "assertion_reason": "\u2705 Network Segmentation validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753933962-b68fdd44",
+        "failed_commands": 0,
+        "timestamp": "2025-07-31T03:52:42.884873+00:00",
+        "ksi_id": "KSI-CNA-01",
+        "category": "Configuration & Network Architecture",
+        "successful_commands": 3,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    },
+    {
+      "record": {
+        "assertion": true,
+        "commands_executed": 3,
+        "assertion_reason": "\u2705 User Account Management validation passed",
+        "tenant_id": "tenant-0bf4618d",
+        "execution_id": "exec-1753933962-b68fdd44",
+        "failed_commands": 0,
+        "timestamp": "2025-07-31T03:52:42.891189+00:00",
+        "ksi_id": "KSI-IAM-01",
+        "category": "Identity & Access Management",
+        "successful_commands": 3,
+        "record_type": "result"
+      },
+      "issues": {
+        "critical": [
+          "Automated KSI missing CLI command details"
+        ],
+        "warning": [],
+        "info": []
+      }
+    }
+  ]
+}

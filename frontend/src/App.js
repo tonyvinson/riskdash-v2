@@ -31,21 +31,42 @@ function App() {
     }
   };
 
+  // 🎯 DYNAMIC HEADER CONTENT BASED ON VIEW
+  const getHeaderContent = () => {
+    if (currentView === 'dashboard') {
+      return {
+        title: "FedRAMP 20x Dashboard",
+        subtitle: "Real-time Compliance Validation & Trustcenter",
+        icon: "🛡️"
+      };
+    } else {
+      return {
+        title: "KSI Validator - Onboarding Platform", 
+        subtitle: "Enterprise FedRAMP 20X Compliance Validation",
+        icon: "🏢"
+      };
+    }
+  };
+
+  const headerContent = getHeaderContent();
+
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header Navigation */}
       <header className="bg-white shadow-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6">
           <div className="flex items-center justify-between h-16">
-            {/* Logo and Title */}
+            {/* 🎯 DYNAMIC Logo and Title */}
             <div className="flex items-center space-x-3">
-              <Shield className="text-blue-600" size={32} />
+              <div className="bg-blue-600 text-white p-2 rounded-lg">
+                <span className="text-lg">{headerContent.icon}</span>
+              </div>
               <div>
                 <h1 className="text-xl font-bold text-gray-900">
-                  KSI Validator - Onboarding Platform
+                  {headerContent.title}
                 </h1>
                 <p className="text-sm text-gray-500">
-                  Enterprise FedRAMP 20X Compliance Validation
+                  {headerContent.subtitle}
                 </p>
               </div>
             </div>
