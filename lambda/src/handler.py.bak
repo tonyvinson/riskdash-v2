@@ -44,19 +44,9 @@ def cors_response(status_code: int, body: dict):
     }
 
 def lambda_handler(event, context):
-    """Main Lambda handler - supports individual tenant EventBridge scheduling"""
+    """Main Lambda handler for KSI validation platform"""
     
     logger.info(f"Received event: {json.dumps(event)}")
-    
-    # 🕐 Handle EventBridge scheduled events (individual tenant)
-    if event.get('source') == 'eventbridge-scheduler':
-        logger.info("🕐 Processing scheduled EventBridge validation for individual tenant")
-        return handle_individual_tenant_scheduled_event(event, context)
-    
-    # 🕐 Handle direct EventBridge rules
-    if event.get('source') == 'aws.events':
-        logger.info("🕐 Processing AWS EventBridge rule for individual tenant")
-        return handle_individual_tenant_scheduled_event(event, context)
     
     # Handle CORS preflight requests
     if event.get('httpMethod') == 'OPTIONS':
@@ -71,105 +61,25 @@ def lambda_handler(event, context):
             'body': json.dumps({'message': 'CORS preflight successful'})
         }
     
-    # Handle API Gateway requests (existing functionality)
-    if 'httpMethod' in event:
-        return handle_api_gateway_request(event, context)
-    
-    # Unknown event type
-    logger.warning("Unknown event type received")
-    return {'statusCode': 400, 'body': json.dumps({'error': 'Unknown event type'})}
-
-def handle_individual_tenant_scheduled_event(event, context):
-    """🕐 Handle scheduled validation for individual tenant (no ALL_TENANTS)"""
-    try:
-        # Extract tenant info directly from EventBridge event
-        tenant_id = event.get('tenant_id')
-        tenant_name = event.get('tenant_name', 'Unknown Tenant')
-        trigger_source = event.get('trigger_source', 'scheduled_daily_individual')
-        offset_minutes = event.get('offset_minutes', 0)
-        
-        logger.info(f"🕐 Starting scheduled validation for individual tenant: {tenant_id} ({tenant_name})")
-        logger.info(f"🕐 Trigger source: {trigger_source}, Offset: {offset_minutes} minutes")
-        
-        if not tenant_id:
-            raise ValueError("tenant_id is required for individual tenant scheduling")
-        
-        # Prepare validation request for this specific tenant
-        validation_request = {
-            'tenant_id': tenant_id,
-            'trigger_source': trigger_source,
-            'validate_all': event.get('validate_all', True),
-            'scheduled_run': True,
-            'ksi_categories': event.get('ksi_categories', []),  # For weekly runs
-            'schedule_frequency': event.get('schedule_frequency', 'daily')
-        }
-        
-        logger.info(f"🕐 Validation request: {validation_request}")
-        
-        # Execute validation using existing trigger_ksi_validation function
-        result = trigger_ksi_validation(validation_request)
-        result_data = json.loads(result['body'])
-        
-        if result['statusCode'] == 200:
-            logger.info(f"✅ Scheduled validation completed successfully for {tenant_id}")
-            logger.info(f"📊 Results: {result_data.get('ksis_validated', 0)} KSIs validated")
-            
-            # Return success response for EventBridge
-            return {
-                'statusCode': 200,
-                'body': json.dumps({
-                    'status': 'success',
-                    'tenant_id': tenant_id,
-                    'tenant_name': tenant_name,
-                    'trigger_source': trigger_source,
-                    'ksis_validated': result_data.get('ksis_validated', 0),
-                    'execution_id': result_data.get('execution_id'),
-                    'timestamp': datetime.now(timezone.utc).isoformat(),
-                    'message': f'Scheduled validation completed for {tenant_name}'
-                })
-            }
-        else:
-            logger.error(f"❌ Scheduled validation failed for {tenant_id}: {result_data.get('error')}")
-            raise Exception(f"Validation failed: {result_data.get('error')}")
-            
-    except Exception as e:
-        logger.error(f"❌ Error in scheduled validation: {str(e)}")
-        return {
-            'statusCode': 500,
-            'body': json.dumps({
-                'status': 'error',
-                'tenant_id': event.get('tenant_id', 'unknown'),
-                'error': str(e),
-                'timestamp': datetime.now(timezone.utc).isoformat()
-            })
-        }
-
-def handle_api_gateway_request(event, context):
-    """Handle API Gateway requests (existing functionality)"""
     path = event.get('path', '')
     method = event.get('httpMethod', '')
     
-    logger.info(f"Processing API request: {method} {path}")
+    logger.info(f"Processing request: {method} {path}")
     
     try:
         # Health check
         if path == '/api/health':
-            return cors_response(200, {
-                'status': 'healthy', 
-                'timestamp': datetime.now(timezone.utc).isoformat(),
-                'version': '2.0',
-                'features': ['api_gateway', 'individual_tenant_scheduling', 'ksi_validation']
-            })
+            return cors_response(200, {'status': 'healthy', 'timestamp': datetime.now(timezone.utc).isoformat()})
         
         # KSI validation routes
         elif path.startswith('/api/ksi/'):
             return handle_ksi_validation_routes(event, context)
         
-        # Admin routes
+        # Admin routes (FIXED)
         elif path.startswith('/api/admin/'):
             return handle_admin_routes(event, context)
         
-        # Tenant routes  
+        # Tenant routes
         elif path.startswith('/api/tenant/'):
             return handle_tenant_routes(event, context)
         
@@ -177,7 +87,7 @@ def handle_api_gateway_request(event, context):
             return cors_response(404, {'error': f'Route not found: {path}'})
             
     except Exception as e:
-        logger.error(f"Error processing API request: {str(e)}")
+        logger.error(f"Error processing request: {str(e)}")
         return cors_response(500, {'error': str(e)})
 
 def handle_admin_routes(event, context):
@@ -187,7 +97,7 @@ def handle_admin_routes(event, context):
     
     logger.info(f"Admin route: {method} {path}")
     
-    # KSI Defaults endpoint
+    # KSI Defaults endpoint (THE MISSING ONE!)
     if path == '/api/admin/ksi-defaults':
         if method == 'GET':
             return get_ksi_defaults()
@@ -207,7 +117,7 @@ def handle_admin_routes(event, context):
     return cors_response(404, {'error': f'Admin route not found: {path}'})
 
 def get_ksi_defaults():
-    """Get all available KSI definitions"""
+    """Get all available KSI definitions - THE MISSING ENDPOINT!"""
     try:
         rules_table = dynamodb.Table(VALIDATION_RULES_TABLE)
         response = rules_table.scan()
@@ -301,13 +211,12 @@ def get_system_status():
         return cors_response(200, {
             'status': 'healthy',
             'timestamp': datetime.now(timezone.utc).isoformat(),
-            'version': '2.0',
-            'scheduling': 'individual_tenant'
+            'version': '1.0.0'
         })
     except Exception as e:
         return cors_response(500, {'error': str(e)})
 
-# KSI Validation Routes
+# KSI Validation Routes (FIXED!)
 def handle_ksi_validation_routes(event, context):
     """Handle KSI validation execution routes"""
     path = event.get('path', '')
@@ -315,6 +224,7 @@ def handle_ksi_validation_routes(event, context):
     
     if path == '/api/ksi/validate':
         if method == 'POST':
+            # FIXED: Replace stub with real validation logic
             return trigger_ksi_validation(json.loads(event['body']))
     
     elif path.startswith('/api/ksi/results'):
@@ -332,7 +242,7 @@ def handle_ksi_validation_routes(event, context):
     return cors_response(404, {'error': 'KSI validation route not found'})
 
 def trigger_ksi_validation(validation_request):
-    """Execute KSI validation for a single tenant"""
+    """REAL validation function - replaces the stub!"""
     logger.info(f"Triggering KSI validation: {validation_request}")
     
     try:
@@ -340,15 +250,14 @@ def trigger_ksi_validation(validation_request):
         trigger_source = validation_request.get('trigger_source', 'frontend')
         ksi_filter = validation_request.get('ksi_filter', [])
         validate_all = validation_request.get('validate_all', False)
-        ksi_categories = validation_request.get('ksi_categories', [])
         
         if not tenant_id:
             return cors_response(400, {'error': 'tenant_id is required'})
         
         execution_id = f"exec-{int(datetime.now(timezone.utc).timestamp())}-{uuid.uuid4().hex[:8]}"
-        logger.info(f"Starting validation execution: {execution_id} for tenant: {tenant_id}")
+        logger.info(f"Starting validation execution: {execution_id}")
         
-        # Get KSI validation rules from database
+        # Get KSI validation rules from your existing table
         rules_table = dynamodb.Table(VALIDATION_RULES_TABLE)
         response = rules_table.scan()
         available_ksis = response.get('Items', [])
@@ -358,12 +267,7 @@ def trigger_ksi_validation(validation_request):
         # Filter KSIs if specified
         if ksi_filter and not validate_all:
             available_ksis = [ksi for ksi in available_ksis if ksi.get('ksi_id') in ksi_filter or ksi.get('rule_id') in ksi_filter]
-            logger.info(f"Filtered to {len(available_ksis)} KSIs by ID: {ksi_filter}")
-        
-        # Filter by categories for weekly runs
-        if ksi_categories:
-            available_ksis = [ksi for ksi in available_ksis if ksi.get('category') in ksi_categories]
-            logger.info(f"Filtered to {len(available_ksis)} KSIs by categories: {ksi_categories}")
+            logger.info(f"Filtered to {len(available_ksis)} KSIs: {ksi_filter}")
         
         if not available_ksis:
             return cors_response(400, {'error': 'No KSI rules found to validate'})
@@ -417,7 +321,6 @@ def trigger_ksi_validation(validation_request):
         return cors_response(200, {
             'status': 'success',
             'execution_id': execution_id,
-            'tenant_id': tenant_id,
             'ksis_validated': len(validation_results),
             'validation_results': validation_results,
             'message': f'Validation completed successfully for {len(validation_results)} KSIs'

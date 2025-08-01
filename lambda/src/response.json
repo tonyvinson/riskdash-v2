@@ -1,0 +1,1 @@
+{"statusCode": 200, "body": "{\"status\": \"success\", \"tenant_id\": \"tenant-0bf4618d\", \"tenant_name\": \"Longevity Consulting\", \"trigger_source\": \"test_scheduled\", \"ksis_validated\": 51, \"execution_id\": \"exec-1754070309-bceecd3c\", \"timestamp\": \"2025-08-01T17:45:10.177659+00:00\", \"message\": \"Scheduled validation completed for Longevity Consulting\"}"}

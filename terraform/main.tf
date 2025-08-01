@@ -555,3 +555,156 @@ output "frontend_bucket" {
   description = "Frontend S3 bucket name"
   value       = aws_s3_bucket.frontend_bucket.id
 }
+
+
+# ============================================================================
+# INDIVIDUAL TENANT SCHEDULING WITH OFFSETS
+# Replace the existing EventBridge section in your main.tf
+# ============================================================================
+
+# Define your tenants with their offset schedules
+locals {
+  # Configure your tenants here with staggered schedules
+  tenant_schedules = {
+    "tenant-0bf4618d" = {
+      name = "Longevity Consulting"
+      schedule = "cron(0 6 * * ? *)"   # 6:00 AM UTC
+      offset_minutes = 0
+    }
+    # Add more tenants as needed:
+    # "tenant-abc123" = {
+    #   name = "Example Corp"
+    #   schedule = "cron(15 6 * * ? *)"  # 6:15 AM UTC
+    #   offset_minutes = 15
+    # }
+    # "tenant-def456" = {
+    #   name = "Demo Company"  
+    #   schedule = "cron(30 6 * * ? *)"  # 6:30 AM UTC
+    #   offset_minutes = 30
+    # }
+  }
+}
+
+# Create individual EventBridge rule for each tenant
+resource "aws_cloudwatch_event_rule" "tenant_ksi_validation" {
+  for_each = local.tenant_schedules
+  
+  name                = "${var.project_name}-validation-${each.key}-${var.environment}"
+  description         = "Daily KSI validation for ${each.value.name} (${each.key})"
+  schedule_expression = each.value.schedule
+  
+  tags = {
+    Name = "KSI Validation - ${each.value.name}"
+    Purpose = "Automated daily KSI compliance validation"
+    TenantId = each.key
+    Environment = var.environment
+  }
+}
+
+# Create individual EventBridge target for each tenant
+resource "aws_cloudwatch_event_target" "tenant_ksi_validation_target" {
+  for_each = local.tenant_schedules
+  
+  rule      = aws_cloudwatch_event_rule.tenant_ksi_validation[each.key].name
+  target_id = "KSIValidationTarget-${each.key}"
+  arn       = aws_lambda_function.ksi_validator.arn
+  
+  # Send tenant-specific validation request
+  input = jsonencode({
+    source = "eventbridge-scheduler"
+    tenant_id = each.key
+    tenant_name = each.value.name
+    trigger_source = "scheduled_daily_individual"
+    validate_all = true
+    scheduled_run = true
+    schedule_frequency = "daily"
+    offset_minutes = each.value.offset_minutes
+  })
+}
+
+# Create individual Lambda permission for each tenant EventBridge rule
+resource "aws_lambda_permission" "allow_eventbridge_tenant_validation" {
+  for_each = local.tenant_schedules
+  
+  statement_id  = "AllowExecutionFromEventBridge-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ksi_validator.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.tenant_ksi_validation[each.key].arn
+}
+
+# ============================================================================
+# WEEKLY SCHEDULES (Optional - for less critical KSIs)
+# ============================================================================
+
+# Weekly validation for each tenant (staggered on different days)
+resource "aws_cloudwatch_event_rule" "tenant_weekly_validation" {
+  for_each = local.tenant_schedules
+  
+  name                = "${var.project_name}-weekly-${each.key}-${var.environment}"
+  description         = "Weekly KSI validation for ${each.value.name}"
+  # Stagger weekly runs across different days
+  schedule_expression = "cron(0 2 ? * ${each.value.offset_minutes < 30 ? "SUN" : "MON"} *)"
+  
+  tags = {
+    Name = "KSI Weekly Validation - ${each.value.name}"
+    Purpose = "Automated weekly KSI validation for less critical categories"
+    TenantId = each.key
+    Environment = var.environment
+  }
+}
+
+resource "aws_cloudwatch_event_target" "tenant_weekly_validation_target" {
+  for_each = local.tenant_schedules
+  
+  rule      = aws_cloudwatch_event_rule.tenant_weekly_validation[each.key].name
+  target_id = "KSIWeeklyValidationTarget-${each.key}"
+  arn       = aws_lambda_function.ksi_validator.arn
+  
+  input = jsonencode({
+    source = "eventbridge-scheduler"
+    tenant_id = each.key
+    tenant_name = each.value.name
+    trigger_source = "scheduled_weekly_individual"
+    validate_all = false
+    scheduled_run = true
+    schedule_frequency = "weekly"
+    ksi_categories = ["PIY", "TPR", "RPL", "CED", "INR"]  # Less critical categories
+  })
+}
+
+resource "aws_lambda_permission" "allow_eventbridge_weekly_tenant_validation" {
+  for_each = local.tenant_schedules
+  
+  statement_id  = "AllowExecutionFromEventBridgeWeekly-${each.key}"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.ksi_validator.function_name
+  principal     = "events.amazonaws.com"
+  source_arn    = aws_cloudwatch_event_rule.tenant_weekly_validation[each.key].arn
+}
+
+# ============================================================================
+# OUTPUTS FOR MONITORING
+# ============================================================================
+
+output "tenant_schedules" {
+  description = "Individual tenant validation schedules"
+  value = {
+    for tenant_id, config in local.tenant_schedules : tenant_id => {
+      name = config.name
+      daily_schedule = config.schedule
+      weekly_schedule = "cron(0 2 ? * ${config.offset_minutes < 30 ? "SUN" : "MON"} *)"
+      eventbridge_rule_arn = aws_cloudwatch_event_rule.tenant_ksi_validation[tenant_id].arn
+    }
+  }
+}
+
+output "ksi_validation_schedule_summary" {
+  description = "KSI validation schedule summary"
+  value = {
+    total_tenants = length(local.tenant_schedules)
+    daily_rules_created = length(aws_cloudwatch_event_rule.tenant_ksi_validation)
+    weekly_rules_created = length(aws_cloudwatch_event_rule.tenant_weekly_validation)
+    lambda_function = aws_lambda_function.ksi_validator.function_name
+  }
+}
