@@ -66,6 +66,34 @@ const ksiService = {
   }
 };
 
+// ===================================================================
+// 🔧 UTILITY FUNCTIONS FOR DATA PROCESSING
+// ===================================================================
+
+// Get latest result per unique KSI (eliminates duplicates)
+const getLatestResultsPerKSI = (results) => {
+  console.log('🔍 Deduplicating results - input count:', results.length);
+  
+  if (!results || results.length === 0) return [];
+  
+  const latestResults = {};
+  
+  results.forEach(result => {
+    const ksiId = result.ksi_id;
+    const timestamp = result.timestamp || '';
+    
+    // Keep the result with the latest timestamp for each KSI
+    if (!latestResults[ksiId] || timestamp > (latestResults[ksiId].timestamp || '')) {
+      latestResults[ksiId] = result;
+    }
+  });
+  
+  const uniqueResults = Object.values(latestResults);
+  console.log('✅ Deduplicated results - unique KSIs:', uniqueResults.length);
+  
+  return uniqueResults;
+};
+
 // Function to transform execution data for UI display
 const enhanceExecutionDataForUI = (executions) => {
   console.log('🔧 Enhancing execution data for UI:', executions);
@@ -329,31 +357,133 @@ const SimplifiedDashboard = () => {
 
       console.log('💾 Loading KSI preferences from localStorage...');
       let ksiPreferences = {};
+      let usingSmartCategorization = false;
+      
       try {
         const prefsData = localStorage.getItem('ksiPreferences');
-        if (prefsData) {
+        const managementPrefsData = localStorage.getItem('ksi-management-preferences');
+        
+        if (managementPrefsData) {
+          const managementPrefs = JSON.parse(managementPrefsData);
+          console.log('📋 Found ksi-management-preferences:', managementPrefs);
+          // Convert management preferences to ksiPreferences format
+          if (managementPrefs.automated) {
+            managementPrefs.automated.forEach(ksiId => {
+              ksiPreferences[ksiId] = 'active';
+            });
+          }
+          if (managementPrefs.manual) {
+            managementPrefs.manual.forEach(ksiId => {
+              ksiPreferences[ksiId] = 'manual';
+            });
+          }
+          console.log('✅ Using saved management preferences for', Object.keys(ksiPreferences).length, 'KSIs');
+        } else if (prefsData) {
           ksiPreferences = JSON.parse(prefsData);
-          console.log('✅ Loaded KSI preferences:', Object.keys(ksiPreferences).length);
+          console.log('✅ Using saved KSI preferences for', Object.keys(ksiPreferences).length, 'KSIs');
+        } else {
+          console.log('🔧 No saved preferences found - will use smart categorization');
+          usingSmartCategorization = true;
         }
       } catch (error) {
         console.warn('⚠️ Error loading KSI preferences:', error);
+        usingSmartCategorization = true;
       }
 
-      const allKSIs = ksisResponse.available_ksis || ksisResponse.ksi_defaults || [];
-      const results = resultsResponse.results || [];
+      const allKSIs = ksisResponse.available_ksis || ksisResponse.ksi_defaults || ksisResponse.available_ksi || [];
+      const rawResults = resultsResponse.results || [];
       const executions = executionsResponse.executions || [];
       
-      console.log(`📈 Data loaded: ${allKSIs.length} KSIs, ${results.length} results, ${executions.length} executions`);
+      // 🔍 DEBUG: Log actual API response structure
+      console.log('🔍 DEBUG - KSI Response Structure:', Object.keys(ksisResponse));
+      console.log('🔍 DEBUG - Available KSI fields:', {
+        available_ksis: ksisResponse.available_ksis?.length || 0,
+        ksi_defaults: ksisResponse.ksi_defaults?.length || 0, 
+        available_ksi: ksisResponse.available_ksi?.length || 0
+      });
+      console.log('🔍 DEBUG - Results count:', rawResults.length);
       
-      const totalKSIs = allKSIs.length;
-      const activeKSIsList = allKSIs.filter(ksi => {
-        const pref = ksiPreferences[ksi.ksi_id] || 'active';
-        return pref === 'active';
-      });
-      const activeResults = results.filter(result => {
-        const pref = ksiPreferences[result.ksi_id] || 'active';
-        return pref === 'active';
-      });
+      // 🔧 CRITICAL FIX: Deduplicate results to get unique KSIs only
+      const results = getLatestResultsPerKSI(rawResults);
+      
+      // 🔧 FALLBACK: If no KSI metadata, create from results
+      let finalKSIsList = allKSIs;
+      if (allKSIs.length === 0 && results.length > 0) {
+        console.log('🔧 FALLBACK: Creating KSI list from results since metadata is empty');
+        finalKSIsList = results.map(result => ({
+          ksi_id: result.ksi_id,
+          title: result.title || `KSI ${result.ksi_id}`,
+          category: result.category || 'Unknown'
+        }));
+        console.log('✅ Created', finalKSIsList.length, 'KSIs from results');
+      }
+      
+      console.log(`📈 Data loaded: ${finalKSIsList.length} KSIs, ${rawResults.length} raw results → ${results.length} unique results, ${executions.length} executions`);
+      
+      const totalKSIs = finalKSIsList.length;
+      let activeKSIsList = [];
+      let smartCategorizationResults = { automated: 0, manual: 0 };
+      
+      if (usingSmartCategorization || Object.keys(ksiPreferences).length === 0) {
+        console.log('🧠 Using SMART CATEGORIZATION logic...');
+        
+        // Check if user requested lower threshold
+        const useLowerThreshold = localStorage.getItem('use-lower-threshold') === 'true';
+        const automatedThreshold = useLowerThreshold ? 3 : 5;
+        console.log(`🎯 Using automated threshold: ≥${automatedThreshold} commands`);
+        
+        finalKSIsList.forEach(ksi => {
+          const result = results.find(r => r.ksi_id === ksi.ksi_id);
+          const commandsExecuted = parseInt(result?.commands_executed || 0);
+          const ksiId = ksi.ksi_id || '';
+          
+          // Smart categorization logic with configurable threshold
+          let category = 'manual';  // Default to manual
+          let reason = 'No commands executed';
+          
+          if (commandsExecuted === 0) {
+            category = 'manual';
+            reason = 'Never executed';
+          } else if (ksiId.includes('POL') || ksiId.includes('DOC') || ksiId.includes('PROC')) {
+            category = 'manual';
+            reason = 'Policy/Documentation KSI';
+          } else if (commandsExecuted >= (automatedThreshold * 2)) {
+            category = 'automated';
+            reason = `High command activity (≥${automatedThreshold * 2})`;
+          } else if (commandsExecuted >= automatedThreshold) {
+            category = 'automated';
+            reason = `Moderate command activity (≥${automatedThreshold})`;
+          } else if (commandsExecuted >= 1) {
+            category = 'manual';
+            reason = `Low activity (${commandsExecuted} commands) - likely testing`;
+          }
+          
+          console.log(`🔧 Smart categorization: ${ksiId}: ${commandsExecuted} commands → ${category} (${reason})`);
+          
+          if (category === 'automated') {
+            activeKSIsList.push(ksi.ksi_id);
+            smartCategorizationResults.automated++;
+          } else {
+            smartCategorizationResults.manual++;
+          }
+        });
+        
+        console.log('✅ Smart categorization complete:', smartCategorizationResults);
+      } else {
+        console.log('📋 Using SAVED PREFERENCES (this might be the problem!)...');
+        
+        activeKSIsList = finalKSIsList.filter(ksi => {
+          const pref = ksiPreferences[ksi.ksi_id] || 'active';
+          const isActive = pref === 'active';
+          console.log(`📋 ${ksi.ksi_id}: preference=${pref}, active=${isActive}`);
+          return isActive;
+        }).map(ksi => ksi.ksi_id);
+        
+        console.log('⚠️ WARNING: Using saved preferences resulted in', activeKSIsList.length, 'active KSIs (probably too many!)');
+      }
+
+      // Filter results to only those for active (automated) KSIs
+      const activeResults = results.filter(result => activeKSIsList.includes(result.ksi_id));
 
       const passedActiveKSIs = activeResults.filter(r => r.assertion === true || r.assertion === "true").length;
       const failedActiveKSIs = activeResults.filter(r => r.assertion === false || r.assertion === "false").length;
@@ -393,9 +523,9 @@ const SimplifiedDashboard = () => {
         }))
         .concat(
           activeKSIsList
-            .filter(ksi => !activeResults.find(r => r.ksi_id === ksi.ksi_id))
+            .filter(ksi => !activeResults.find(r => r.ksi_id === ksi))
             .map(ksi => ({
-              ksi_id: ksi.ksi_id,
+              ksi_id: ksi,
               issue: 'KSI enabled but not yet validated',
               severity: 'medium',
               isPending: true
@@ -413,7 +543,7 @@ const SimplifiedDashboard = () => {
         failedKSIs: failedActiveKSIs,
         pendingKSIs: pendingActiveKSIs,
         activeKSIs: activeKSIsList.length,
-        manualKSIs: totalKSIs - activeKSIsList.length,
+        manualKSIs: usingSmartCategorization ? smartCategorizationResults.manual : (totalKSIs - activeKSIsList.length),
         disabledKSIs: 0,
         executionHistory: enhancedExecutions,
         lastExecutionDetails,
@@ -422,14 +552,45 @@ const SimplifiedDashboard = () => {
         overallTotalKSIs: totalKSIs,
         overallPassedKSIs: overallPassed,
         overallFailedKSIs: overallFailed,
-        priorityItems
+        priorityItems,
+        // 🔧 ALL VALIDATION RESULTS (not just active ones)
+        allValidationResults: {
+          total: results.length,
+          passed: results.filter(r => r.assertion === true || r.assertion === "true").length,
+          failed: results.filter(r => r.assertion === false || r.assertion === "false").length,
+          recentResults: results.filter(r => {
+            if (!r.timestamp) return false;
+            const resultTime = new Date(r.timestamp);
+            const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+            return resultTime > thirtyMinutesAgo;
+          }).length
+        },
+        // 🔧 DEBUGGING INFO
+        _debug: {
+          rawResultsCount: rawResults.length,
+          uniqueResultsCount: results.length,
+          deduplicationSaved: rawResults.length - results.length,
+          categorization: usingSmartCategorization ? {
+            type: 'SMART_CATEGORIZATION',
+            automated: smartCategorizationResults.automated,
+            manual: smartCategorizationResults.manual,
+            threshold: localStorage.getItem('use-lower-threshold') === 'true' ? 3 : 5,
+            logic: `Smart categorization: ≥${localStorage.getItem('use-lower-threshold') === 'true' ? 3 : 5} commands = automated`
+          } : {
+            type: 'SAVED_PREFERENCES',
+            automated: activeKSIsList.length,
+            manual: totalKSIs - activeKSIsList.length,
+            warning: 'Using saved preferences - may be inaccurate! Click reset button above.'
+          }
+        }
       };
 
       console.log('✅ Dashboard data compiled successfully:', {
         status: finalData.status,
         compliance: finalData.compliance,
         executions: finalData.executionHistory.length,
-        issues: finalData.issuesCount
+        issues: finalData.issuesCount,
+        debugInfo: finalData._debug
       });
 
       setDashboardData(finalData);
@@ -497,11 +658,149 @@ const SimplifiedDashboard = () => {
   console.log('🎨 Rendering dashboard with data:', {
     status: dashboardData.status,
     executionHistory: dashboardData.executionHistory.length,
-    selectedView
+    selectedView,
+    debugInfo: dashboardData._debug
   });
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
+      {/* 🔧 DEBUG INFO - Remove in production */}
+      {dashboardData._debug && (
+        <div className={`mb-4 p-3 border rounded text-sm ${
+          dashboardData._debug.categorization.type === 'SMART_CATEGORIZATION' 
+            ? 'bg-green-50 border-green-200' 
+            : 'bg-yellow-50 border-yellow-200'
+        }`}>
+          <strong>🔧 Debug Info:</strong> Raw results: {dashboardData._debug.rawResultsCount} → 
+          Unique results: {dashboardData._debug.uniqueResultsCount} 
+          (Saved {dashboardData._debug.deduplicationSaved} duplicates)
+          <br />
+          <strong>📊 Categorization:</strong> {dashboardData._debug.categorization.type} - 
+          {dashboardData._debug.categorization.automated} automated, 
+          {dashboardData._debug.categorization.manual} manual
+          {dashboardData._debug.categorization.warning && (
+            <div className="text-yellow-700 mt-1">
+              ⚠️ {dashboardData._debug.categorization.warning}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 🎯 SMART CATEGORIZATION STATUS */}
+      {dashboardData._debug?.categorization?.type === 'SMART_CATEGORIZATION' && dashboardData.activeKSIs <= 10 ? (
+        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-green-800 mb-1">✅ Smart Categorization Active</h3>
+              <p className="text-sm text-green-600">
+                {dashboardData.activeKSIs} automated KSIs detected - this is realistic for FedRAMP!
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  if (window.confirm('Lower threshold to ≥3 commands to show more KSIs as automated?\n\nThis will increase your automated KSI count and compliance percentage.')) {
+                    localStorage.setItem('use-lower-threshold', 'true');
+                    loadSimplifiedData();
+                  }
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                📈 Show More KSIs
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : dashboardData.activeKSIs > 15 ? (
+        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-red-800 mb-1">🚨 Too Many Automated KSIs</h3>
+              <p className="text-sm text-red-700">
+                {dashboardData.activeKSIs} automated KSIs seems too high - most should be manual policy checks
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  if (window.confirm('Reset to smart categorization with ≥5 command threshold?\n\nThis will give you more realistic KSI categorization.')) {
+                    localStorage.removeItem('ksiPreferences');
+                    localStorage.removeItem('ksi-management-preferences');
+                    localStorage.removeItem('use-lower-threshold');
+                    loadSimplifiedData();
+                  }
+                }}
+                className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 font-medium"
+              >
+                🔄 Reset to Smart Logic
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="mb-6 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="font-semibold text-blue-800 mb-1">📈 Recent Validation Activity</h3>
+              <p className="text-sm text-blue-600">Check if your validation created new results</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 📊 ALL VALIDATION RESULTS SUMMARY */}
+      {dashboardData.allValidationResults && (
+        <div className="mb-6 p-4 bg-white border rounded-lg shadow-sm">
+          <div className="flex items-center justify-between mb-3">
+            <div>
+              <h3 className="font-semibold text-gray-800">📊 Complete Validation Results</h3>
+              <p className="text-sm text-gray-600">All KSIs across the entire system (not just dashboard tracking)</p>
+            </div>
+            <div className="flex gap-2">
+              <button 
+                onClick={() => {
+                  console.log('🔄 Force refreshing dashboard data...');
+                  loadSimplifiedData();
+                }}
+                className="px-3 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 text-sm"
+              >
+                🔄 Refresh
+              </button>
+              <button 
+                onClick={() => {
+                  const allResults = dashboardData.allValidationResults;
+                  alert(`📊 ALL VALIDATION RESULTS:\n\n✅ ${allResults.passed} KSIs PASSED\n❌ ${allResults.failed} KSIs FAILED\n📋 ${allResults.total} Total KSIs with results\n🕐 ${allResults.recentResults} Recent results (30min)\n\n${allResults.recentResults > 0 ? '✅ Your validation DID work!' : '⚠️ No recent results - validation may not have completed'}\n\nDashboard only shows ${dashboardData.activeKSIs} "automated" KSIs due to smart categorization.`);
+                }}
+                className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
+              >
+                📋 Details
+              </button>
+            </div>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-center">
+            <div className="p-3 bg-green-50 rounded">
+              <div className="text-2xl font-bold text-green-600">{dashboardData.allValidationResults.passed}</div>
+              <div className="text-sm text-gray-600">All KSIs Passed</div>
+            </div>
+            <div className="p-3 bg-red-50 rounded">
+              <div className="text-2xl font-bold text-red-600">{dashboardData.allValidationResults.failed}</div>
+              <div className="text-sm text-gray-600">All KSIs Failed</div>
+            </div>
+            <div className="p-3 bg-blue-50 rounded">
+              <div className="text-2xl font-bold text-blue-600">{dashboardData.allValidationResults.total}</div>
+              <div className="text-sm text-gray-600">Total with Results</div>
+            </div>
+            <div className="p-3 bg-purple-50 rounded">
+              <div className="text-2xl font-bold text-purple-600">{dashboardData.allValidationResults.recentResults}</div>
+              <div className="text-sm text-gray-600">Recent (30min)</div>
+              {dashboardData.allValidationResults.recentResults > 0 && (
+                <div className="text-xs text-green-600 font-medium">✅ Validation worked!</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="text-center mb-8">
         {dashboardData.status === 'healthy' ? (
           <div className="space-y-4">
