@@ -350,7 +350,7 @@ const DualDashboard = () => {
     loadEnhancedData();
   }, []);
 
-  // 🔧 NEW: Enhanced data loading using RealKSIManagement strategy
+  // 🔧 FIXED: Enhanced data loading using same endpoint as RealKSIManagement
   const loadEnhancedData = async () => {
     try {
       console.log('🔍 Loading enhanced DualDashboard data with real KSI metadata...');
@@ -373,18 +373,20 @@ const DualDashboard = () => {
       console.log('📊 Fetching KSI metadata, tenant config, results, and executions...');
       const [ksisResponse, tenantResponse, resultsResponse, executionsResponse] = await Promise.all([
         apiClient.get('/api/admin/ksi-defaults'),
-        apiClient.get('/api/tenant/config?tenant_id=tenant-0bf4618d').catch(() => ({ enabled_ksis: [] })), // Fallback
+        apiClient.get('/api/admin/tenants/tenant-0bf4618d').catch(() => ({ tenant: { enabled_ksis: [] } })), // FIXED: Use same endpoint as RealKSIManagement
         apiClient.get('/api/ksi/results?tenant_id=tenant-0bf4618d'),
         apiClient.get('/api/ksi/executions?tenant_id=tenant-0bf4618d&limit=10')
       ]);
 
       // 🔧 ENHANCED: Use real KSI metadata from API (same as RealKSIManagement)
       const allKSIs = ksisResponse.available_ksis || ksisResponse.ksi_defaults || ksisResponse.available_ksi || [];
-      const enabledKSIs = tenantResponse.enabled_ksis || ['KSI-MLA-01', 'KSI-MLA-02', 'KSI-SVC-06']; // Fallback to your known enabled KSIs
+      const enabledKSIs = tenantResponse.tenant?.enabled_ksis || []; // FIXED: Use correct data structure
       const rawResults = resultsResponse.results || [];
       const executions = executionsResponse.executions || [];
       
       console.log(`📈 Real data loaded: ${allKSIs.length} total KSIs, ${enabledKSIs.length} enabled, ${rawResults.length} raw results, ${executions.length} executions`);
+      console.log('✅ FIXED: Using same API endpoint as KSI Management Portal');
+      console.log('📋 Enabled KSIs from DynamoDB:', enabledKSIs);
       
       // 🔧 Transform KSIs with real metadata (same pattern as RealKSIManagement)
       const enhancedKSIs = allKSIs.map(ksiObj => ({
@@ -496,7 +498,8 @@ const DualDashboard = () => {
             const resultTime = new Date(r.timestamp);
             const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
             return resultTime > thirtyMinutesAgo;
-          }).length
+          }).length,
+          enabledKSIsList: enabledKSIs // ADDED: For debugging
         }
       };
 
@@ -505,7 +508,9 @@ const DualDashboard = () => {
         compliance: finalData.compliance,
         executions: finalData.executionHistory.length,
         issues: finalData.issuesCount,
-        realData: finalData.realKSIData
+        realData: finalData.realKSIData,
+        enabledKSIs: enabledKSIs.length,
+        enabledKSIsList: enabledKSIs
       });
 
       setDashboardData(finalData);
@@ -579,16 +584,19 @@ const DualDashboard = () => {
 
   return (
     <div className="max-w-7xl mx-auto px-6 py-6">
-      {/* 📊 ENHANCED: Real KSI Data Summary */}
+      {/* 📊 ENHANCED: Real KSI Data Summary with consistency check */}
       {dashboardData.realKSIData && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg">
           <div className="flex items-center justify-between">
             <div>
-              <h3 className="font-semibold text-green-800 mb-1">✅ Real KSI Data Loaded</h3>
+              <h3 className="font-semibold text-green-800 mb-1">✅ Consistent Data Loaded</h3>
               <p className="text-sm text-green-600">
-                Using actual DynamoDB metadata: {dashboardData.realKSIData.total} total KSIs, 
+                Using same API as KSI Management: {dashboardData.realKSIData.total} total KSIs, 
                 {dashboardData.realKSIData.enabled} enabled, 
                 {dashboardData.realKSIData.automated} automated
+              </p>
+              <p className="text-xs text-green-500 mt-1">
+                Enabled KSIs: {dashboardData.realKSIData.enabledKSIsList?.join(', ') || 'Loading...'}
               </p>
             </div>
             <div className="flex gap-2">
@@ -604,7 +612,7 @@ const DualDashboard = () => {
               <button 
                 onClick={() => {
                   const data = dashboardData.realKSIData;
-                  alert(`📊 REAL KSI DATA SUMMARY:\n\n📋 ${data.total} Total KSIs in system\n✅ ${data.enabled} Enabled for tenant\n🤖 ${data.automated} Automated validations\n👤 ${data.manual} Manual policy checks\n📊 ${data.withResults} KSIs with results\n🕐 ${data.recentResults} Recent results (30min)\n\n${data.recentResults > 0 ? '✅ Recent validation activity detected!' : '⚠️ No recent results - run validation to see updates'}\n\nDashboard shows ${dashboardData.activeKSIs} automated KSIs based on real automation_type from API.`);
+                  alert(`📊 CONSISTENT KSI DATA:\n\n📋 ${data.total} Total KSIs in system\n✅ ${data.enabled} Enabled for tenant\n🤖 ${data.automated} Automated validations\n👤 ${data.manual} Manual policy checks\n📊 ${data.withResults} KSIs with results\n🕐 ${data.recentResults} Recent results (30min)\n\n🔧 FIXED: Dashboard now uses same API endpoint as KSI Management Portal\n\nEnabled KSIs: ${data.enabledKSIsList?.join(', ') || 'Loading...'}\n\n${data.recentResults > 0 ? '✅ Recent validation activity detected!' : '⚠️ No recent results - run validation to see updates'}`);
                 }}
                 className="px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 text-sm"
               >
