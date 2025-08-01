@@ -1,362 +1,325 @@
 import React, { useState, useEffect } from 'react';
 
-const KSIManagementModal = ({ isOpen, onClose, onSave }) => {
-  const [ksiCategories, setKsiCategories] = useState({
+const KSIManagementModal = ({ isOpen, onClose, availableKSIs = [], onSave }) => {
+  const [preferences, setPreferences] = useState({
     automated: [],
     manual: [],
     disabled: []
   });
-  const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('automated');
+  const [hasChanges, setHasChanges] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState('all');
+
+  // KSI Categories
+  const categories = {
+    'all': 'All Categories',
+    'CNA': 'Configuration & Network Architecture',
+    'SVC': 'Service Configuration', 
+    'IAM': 'Identity & Access Management',
+    'MLA': 'Monitoring, Logging & Alerting',
+    'CMT': 'Configuration Management & Tracking'
+  };
 
   useEffect(() => {
     if (isOpen) {
-      loadKSIData();
+      loadCurrentPreferences();
     }
   }, [isOpen]);
 
-  const loadKSIData = async () => {
+  const loadCurrentPreferences = () => {
     try {
-      setLoading(true);
-      
-      // Get all available KSIs
-      const response = await fetch('https://hqen6rb9j1.execute-api.us-gov-west-1.amazonaws.com/dev/api/admin/ksi-defaults');
+      const saved = localStorage.getItem('ksi-management-preferences');
+      if (saved) {
+        const parsedPreferences = JSON.parse(saved);
+        setPreferences(parsedPreferences);
+      } else {
+        // Initialize with auto-detected preferences
+        autoDetectPreferences();
+      }
+    } catch (error) {
+      console.error('Error loading KSI preferences:', error);
+      autoDetectPreferences();
+    }
+  };
+
+  const autoDetectPreferences = async () => {
+    try {
+      // Fetch current results to detect which KSIs have been run
+      const response = await fetch('https://hqen6rb9j1.execute-api.us-gov-west-1.amazonaws.com/dev/api/ksi/results?tenant_id=tenant-0bf4618d');
       const data = await response.json();
-      const allKSIs = data.available_ksis || [];
+      const results = data.results || [];
 
-      // Get current results to determine which have CLI commands
-      const resultsResponse = await fetch('https://hqen6rb9j1.execute-api.us-gov-west-1.amazonaws.com/dev/api/ksi/results?tenant_id=tenant-0bf4618d');
-      const resultsData = await resultsResponse.json();
-      const results = resultsData.results || [];
+      const automated = [];
+      const manual = [];
 
-      console.log('🔍 Modal KSI Analysis:');
-      console.log('Total KSIs:', allKSIs.length);
-      console.log('Results available:', results.length);
-
-      // Categorize KSIs using EXACT SAME LOGIC as dashboard
-      const categorized = {
-        automated: [],
-        manual: [],
-        disabled: []
-      };
-
-      allKSIs.forEach(ksi => {
+      availableKSIs.forEach(ksi => {
         const result = results.find(r => r.ksi_id === ksi.ksi_id);
         const commandsExecuted = parseInt(result?.commands_executed || 0);
-        const hasCommands = commandsExecuted > 0;
         
-        const ksiWithStatus = {
-          ...ksi,
-          hasCommands,
-          lastRun: result?.timestamp,
-          status: result?.assertion,
-          commandCount: commandsExecuted,
-          category: ksi.category || 'Unknown'
-        };
-
-        console.log(`📋 ${ksi.ksi_id}: commands=${commandsExecuted}, hasCommands=${hasCommands}`);
-
-        // ✅ EXACT SAME LOGIC AS DASHBOARD
-        if (hasCommands) {
-          categorized.automated.push(ksiWithStatus);
+        if (commandsExecuted > 0) {
+          automated.push(ksi.ksi_id);
         } else {
-          categorized.manual.push(ksiWithStatus);
+          manual.push(ksi.ksi_id);
         }
       });
 
-      console.log('📊 Modal Categorization Results:');
-      console.log('Automated:', categorized.automated.length, categorized.automated.map(k => k.ksi_id));
-      console.log('Manual:', categorized.manual.length);
+      setPreferences({
+        automated,
+        manual,
+        disabled: []
+      });
 
-      // ⚠️ IGNORE SAVED PREFERENCES FOR NOW - USE DETECTION LOGIC
-      // This ensures modal matches dashboard exactly
-      setKsiCategories(categorized);
-      
+      console.log('Auto-detected KSI preferences:', { automated: automated.length, manual: manual.length });
     } catch (error) {
-      console.error('Error loading KSI data:', error);
-    } finally {
-      setLoading(false);
+      console.error('Error auto-detecting preferences:', error);
+      // Fallback: put all KSIs in manual
+      setPreferences({
+        automated: [],
+        manual: availableKSIs.map(ksi => ksi.ksi_id),
+        disabled: []
+      });
     }
   };
 
-  const moveKSI = (ksi, fromCategory, toCategory) => {
-    setKsiCategories(prev => ({
-      ...prev,
-      [fromCategory]: prev[fromCategory].filter(k => k.ksi_id !== ksi.ksi_id),
-      [toCategory]: [...prev[toCategory], ksi].sort((a, b) => a.ksi_id.localeCompare(b.ksi_id))
-    }));
+  const moveKSI = (ksiId, fromCategory, toCategory) => {
+    setPreferences(prev => {
+      const newPrefs = { ...prev };
+      
+      // Remove from source category
+      newPrefs[fromCategory] = newPrefs[fromCategory].filter(id => id !== ksiId);
+      
+      // Add to target category
+      if (!newPrefs[toCategory].includes(ksiId)) {
+        newPrefs[toCategory].push(ksiId);
+      }
+      
+      return newPrefs;
+    });
+    
+    setHasChanges(true);
   };
+
+  const getKSICategory = (ksiId) => {
+    if (preferences.automated.includes(ksiId)) return 'automated';
+    if (preferences.manual.includes(ksiId)) return 'manual';
+    if (preferences.disabled.includes(ksiId)) return 'disabled';
+    return 'manual'; // default
+  };
+
+  const getKSIDisplay = (ksi, category) => {
+    return {
+      ...ksi,
+      currentCategory: category,
+      categoryLabel: {
+        'automated': 'Active',
+        'manual': 'Manual',
+        'disabled': 'Disabled'
+      }[category] || 'Unknown'
+    };
+  };
+
+  const filteredKSIs = availableKSIs.filter(ksi => {
+    // Filter by search term
+    if (searchTerm && !ksi.ksi_id.toLowerCase().includes(searchTerm.toLowerCase()) &&
+        !(ksi.description || '').toLowerCase().includes(searchTerm.toLowerCase())) {
+      return false;
+    }
+    
+    // Filter by category
+    if (selectedCategory !== 'all') {
+      const ksiCategory = ksi.ksi_id.split('-')[1];
+      if (ksiCategory !== selectedCategory) {
+        return false;
+      }
+    }
+    
+    return true;
+  });
 
   const handleSave = () => {
-    // Save preferences to localStorage and callback
-    const preferences = {
-      automated: ksiCategories.automated.map(k => k.ksi_id),
-      manual: ksiCategories.manual.map(k => k.ksi_id),
-      disabled: ksiCategories.disabled.map(k => k.ksi_id)
-    };
-    
-    localStorage.setItem('ksi-management-preferences', JSON.stringify(preferences));
-    
-    // Calculate new metrics based on active KSIs
-    const activeKSIs = ksiCategories.automated;
-    const metrics = {
-      totalActiveKSIs: activeKSIs.length,
-      automatedKSIs: activeKSIs.filter(k => k.hasCommands).length,
-      manualKSIs: ksiCategories.manual.length,
-      disabledKSIs: ksiCategories.disabled.length,
-      activeKSIsList: activeKSIs.map(k => k.ksi_id)
-    };
-    
-    console.log('💾 Saving KSI preferences:', preferences);
-    console.log('📊 New metrics:', metrics);
-    
-    onSave(metrics);
-    onClose();
+    onSave(preferences);
+    setHasChanges(false);
   };
 
-  const resetToDetection = () => {
-    if (window.confirm('Reset to automatic detection based on CLI command execution?')) {
-      localStorage.removeItem('ksi-management-preferences');
-      loadKSIData();
-    }
+  const handleReset = () => {
+    loadCurrentPreferences();
+    setHasChanges(false);
   };
 
-  const filterKSIs = (ksis) => {
-    if (!searchTerm) return ksis;
-    return ksis.filter(ksi => 
-      ksi.ksi_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ksi.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      ksi.category?.toLowerCase().includes(searchTerm.toLowerCase())
-    );
-  };
-
-  const getCategoryColor = (category) => {
-    const colors = {
-      automated: 'border-green-200 bg-green-50',
-      manual: 'border-yellow-200 bg-yellow-50',
-      disabled: 'border-red-200 bg-red-50'
+  const getCategoryStats = () => {
+    return {
+      automated: preferences.automated.length,
+      manual: preferences.manual.length,
+      disabled: preferences.disabled.length,
+      total: availableKSIs.length
     };
-    return colors[category] || 'border-gray-200 bg-gray-50';
-  };
-
-  const getCategoryIcon = (category) => {
-    const icons = {
-      automated: '⚡',
-      manual: '📋',
-      disabled: '⏸️'
-    };
-    return icons[category] || '📄';
   };
 
   if (!isOpen) return null;
 
+  const stats = getCategoryStats();
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-lg max-w-6xl w-full max-h-[90vh] overflow-hidden">
+      <div className="bg-white rounded-lg p-6 max-w-4xl w-full max-h-[90vh] overflow-y-auto">
         
         {/* Header */}
-        <div className="bg-gray-50 px-6 py-4 border-b border-gray-200">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-xl font-semibold text-gray-900">
-                🎛️ KSI Management - Control Active Validations
-              </h2>
-              <p className="text-sm text-gray-600 mt-1">
-                Configure which KSIs are included in compliance scoring (based on CLI command execution)
-              </p>
-            </div>
-            <button
-              onClick={onClose}
-              className="text-gray-400 hover:text-gray-600 text-2xl font-bold"
-            >
-              ×
-            </button>
+        <div className="flex justify-between items-center mb-6">
+          <div>
+            <h2 className="text-xl font-bold">⚙️ Configure KSI Automation</h2>
+            <p className="text-gray-600 text-sm">Choose which KSIs are actively validated and included in compliance calculations</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-gray-500 hover:text-gray-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-4 gap-4 mb-6">
+          <div className="bg-blue-50 p-3 rounded-lg text-center">
+            <div className="text-lg font-bold text-blue-600">{stats.automated}</div>
+            <div className="text-xs text-blue-700">Active KSIs</div>
+          </div>
+          <div className="bg-gray-50 p-3 rounded-lg text-center">
+            <div className="text-lg font-bold text-gray-600">{stats.manual}</div>
+            <div className="text-xs text-gray-700">Manual KSIs</div>
+          </div>
+          <div className="bg-red-50 p-3 rounded-lg text-center">
+            <div className="text-lg font-bold text-red-600">{stats.disabled}</div>
+            <div className="text-xs text-red-700">Disabled KSIs</div>
+          </div>
+          <div className="bg-green-50 p-3 rounded-lg text-center">
+            <div className="text-lg font-bold text-green-600">{stats.total}</div>
+            <div className="text-xs text-green-700">Total KSIs</div>
           </div>
         </div>
 
-        {/* Summary Stats */}
-        <div className="px-6 py-4 bg-blue-50 border-b">
-          <div className="grid grid-cols-4 gap-4 text-center">
-            <div>
-              <div className="text-2xl font-bold text-green-600">{ksiCategories.automated.length}</div>
-              <div className="text-sm text-gray-600">⚡ Automated (Active)</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-yellow-600">{ksiCategories.manual.length}</div>
-              <div className="text-sm text-gray-600">📋 Manual (Informational)</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-red-600">{ksiCategories.disabled.length}</div>
-              <div className="text-sm text-gray-600">⏸️ Disabled</div>
-            </div>
-            <div>
-              <div className="text-2xl font-bold text-blue-600">
-                {ksiCategories.automated.length + ksiCategories.manual.length + ksiCategories.disabled.length}
-              </div>
-              <div className="text-sm text-gray-600">📊 Total KSIs</div>
-            </div>
-          </div>
-          
-          {/* Reset Button */}
-          <div className="mt-3 text-center">
-            <button
-              onClick={resetToDetection}
-              className="text-blue-600 hover:text-blue-800 text-sm underline"
-            >
-              🔄 Reset to Auto-Detection (Based on CLI Commands)
-            </button>
-          </div>
-        </div>
-
-        {/* Search and Tabs */}
-        <div className="px-6 py-4 border-b">
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex space-x-1 bg-gray-100 rounded-lg p-1">
-              {[
-                { id: 'automated', label: '⚡ Automated', color: 'text-green-600' },
-                { id: 'manual', label: '📋 Manual', color: 'text-yellow-600' },
-                { id: 'disabled', label: '⏸️ Disabled', color: 'text-red-600' }
-              ].map(tab => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-4 py-2 rounded text-sm font-medium transition ${
-                    activeTab === tab.id
-                      ? 'bg-white shadow-sm text-gray-900'
-                      : `text-gray-600 hover:text-gray-900 ${tab.color}`
-                  }`}
-                >
-                  {tab.label} ({ksiCategories[tab.id].length})
-                </button>
-              ))}
-            </div>
-            
+        {/* Filters */}
+        <div className="flex gap-4 mb-6">
+          <div className="flex-1">
             <input
               type="text"
               placeholder="Search KSIs..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="px-3 py-2 border border-gray-300 rounded-md text-sm w-64"
+              className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm"
             />
+          </div>
+          <div>
+            <select
+              value={selectedCategory}
+              onChange={(e) => setSelectedCategory(e.target.value)}
+              className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+            >
+              {Object.entries(categories).map(([key, label]) => (
+                <option key={key} value={key}>{label}</option>
+              ))}
+            </select>
           </div>
         </div>
 
         {/* KSI List */}
-        <div className="p-6 overflow-y-auto max-h-[50vh]">
-          {loading ? (
-            <div className="text-center py-8">
-              <div className="text-4xl mb-4">⏳</div>
-              <div>Loading KSI data...</div>
+        <div className="border rounded-lg mb-6 max-h-96 overflow-y-auto">
+          <div className="bg-gray-50 px-4 py-2 border-b font-medium text-sm">
+            <div className="grid grid-cols-12 gap-4">
+              <div className="col-span-4">KSI ID</div>
+              <div className="col-span-5">Description</div>
+              <div className="col-span-2">Current Status</div>
+              <div className="col-span-1">Actions</div>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {filterKSIs(ksiCategories[activeTab]).map(ksi => (
-                <div
-                  key={ksi.ksi_id}
-                  className={`border rounded-lg p-4 ${getCategoryColor(activeTab)}`}
-                >
-                  <div className="flex items-start justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="text-lg">{getCategoryIcon(activeTab)}</span>
-                        <h4 className="font-semibold">{ksi.ksi_id}</h4>
-                        <span className="bg-gray-200 text-gray-700 text-xs px-2 py-1 rounded">
-                          {ksi.category}
-                        </span>
-                        {ksi.hasCommands && (
-                          <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
-                            {ksi.commandCount} CLI commands
-                          </span>
-                        )}
-                        {!ksi.hasCommands && (
-                          <span className="bg-gray-100 text-gray-600 text-xs px-2 py-1 rounded">
-                            Policy check
-                          </span>
-                        )}
-                      </div>
-                      
-                      <p className="text-sm text-gray-700 mb-2">
-                        {ksi.title || ksi.description || 'No description available'}
-                      </p>
-                      
-                      <div className="text-xs text-gray-600">
-                        {ksi.lastRun ? (
-                          <>
-                            Last run: {new Date(ksi.lastRun).toLocaleDateString()} | 
-                            Status: {ksi.status ? '✅ Passed' : '❌ Failed'}
-                          </>
-                        ) : (
-                          'Never executed'
-                        )}
-                      </div>
+          </div>
+          
+          <div className="divide-y">
+            {filteredKSIs.map(ksi => {
+              const currentCategory = getKSICategory(ksi.ksi_id);
+              const displayKSI = getKSIDisplay(ksi, currentCategory);
+              
+              return (
+                <div key={ksi.ksi_id} className="px-4 py-3 hover:bg-gray-50">
+                  <div className="grid grid-cols-12 gap-4 items-center">
+                    <div className="col-span-4">
+                      <span className="font-medium text-sm">{ksi.ksi_id}</span>
                     </div>
-                    
-                    {/* Move buttons */}
-                    <div className="ml-4 flex flex-col gap-1">
-                      {activeTab !== 'automated' && (
-                        <button
-                          onClick={() => moveKSI(ksi, activeTab, 'automated')}
-                          className="bg-green-600 text-white px-3 py-1 rounded text-xs hover:bg-green-700"
-                        >
-                          → Automated
-                        </button>
-                      )}
-                      {activeTab !== 'manual' && (
-                        <button
-                          onClick={() => moveKSI(ksi, activeTab, 'manual')}
-                          className="bg-yellow-600 text-white px-3 py-1 rounded text-xs hover:bg-yellow-700"
-                        >
-                          → Manual
-                        </button>
-                      )}
-                      {activeTab !== 'disabled' && (
-                        <button
-                          onClick={() => moveKSI(ksi, activeTab, 'disabled')}
-                          className="bg-red-600 text-white px-3 py-1 rounded text-xs hover:bg-red-700"
-                        >
-                          → Disabled
-                        </button>
-                      )}
+                    <div className="col-span-5">
+                      <span className="text-sm text-gray-600">
+                        {ksi.description || ksi.purpose || 'No description available'}
+                      </span>
+                    </div>
+                    <div className="col-span-2">
+                      <span className={`px-2 py-1 text-xs rounded-full ${
+                        currentCategory === 'automated' ? 'bg-blue-100 text-blue-800' :
+                        currentCategory === 'manual' ? 'bg-gray-100 text-gray-800' :
+                        'bg-red-100 text-red-800'
+                      }`}>
+                        {displayKSI.categoryLabel}
+                      </span>
+                    </div>
+                    <div className="col-span-1">
+                      <select
+                        value={currentCategory}
+                        onChange={(e) => moveKSI(ksi.ksi_id, currentCategory, e.target.value)}
+                        className="text-xs border border-gray-300 rounded px-2 py-1"
+                      >
+                        <option value="automated">Active</option>
+                        <option value="manual">Manual</option>
+                        <option value="disabled">Disabled</option>
+                      </select>
                     </div>
                   </div>
                 </div>
-              ))}
-              
-              {filterKSIs(ksiCategories[activeTab]).length === 0 && (
-                <div className="text-center py-8 text-gray-500">
-                  <div className="text-4xl mb-2">📭</div>
-                  <div>No KSIs in this category</div>
-                  {searchTerm && <div className="text-sm mt-1">Try adjusting your search</div>}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-
-        {/* Footer */}
-        <div className="bg-gray-50 px-6 py-4 border-t border-gray-200">
-          <div className="flex items-center justify-between">
-            <div className="text-sm text-gray-600">
-              <strong>Automated KSIs</strong> have CLI commands and will be included in compliance scoring. 
-              <strong>Manual KSIs</strong> are policy/document checks (informational only).
-            </div>
-            <div className="flex gap-2">
-              <button
-                onClick={onClose}
-                className="px-4 py-2 border border-gray-300 rounded text-gray-700 hover:bg-gray-50"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSave}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Save Changes
-              </button>
-            </div>
+              );
+            })}
           </div>
         </div>
+
+        {/* Help Text */}
+        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+          <h4 className="font-medium text-blue-800 mb-2">💡 KSI Categories Explained</h4>
+          <div className="text-sm text-blue-700 space-y-1">
+            <div><strong>Active:</strong> Included in automated validation runs and compliance calculations</div>
+            <div><strong>Manual:</strong> Available for on-demand validation but not included in automated compliance scoring</div>
+            <div><strong>Disabled:</strong> Not validated automatically or manually (use for KSIs not applicable to your environment)</div>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex justify-between">
+          <div>
+            <button
+              onClick={handleReset}
+              disabled={!hasChanges}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Reset Changes
+            </button>
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={onClose}
+              className="bg-gray-100 text-gray-700 px-4 py-2 rounded hover:bg-gray-200"
+            >
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!hasChanges}
+              className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              Save Configuration
+            </button>
+          </div>
+        </div>
+
+        {hasChanges && (
+          <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+            <div className="text-sm text-yellow-800">
+              ⚠️ You have unsaved changes. Click "Save Configuration" to apply your changes to the dashboard and compliance calculations.
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
