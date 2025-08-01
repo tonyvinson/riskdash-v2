@@ -487,6 +487,71 @@ resource "aws_api_gateway_integration_response" "lambda_cors" {
   response_parameters = {
     "method.response.header.Access-Control-Allow-Origin" = "'*'"
   }
+depends_on = [aws_api_gateway_integration.lambda]
+}
 
-  depends_on = [aws_api_gateway_integration.lambda]
+# ============================================================================
+# S3 WEBSITE HOSTING (GOVCLOUD COMPATIBLE - NO CLOUDFRONT)
+# ============================================================================
+
+# S3 bucket (already imported)
+resource "aws_s3_bucket" "frontend_bucket" {
+  bucket = "${var.project_name}-frontend-${var.environment}"
+}
+
+# S3 bucket website configuration
+resource "aws_s3_bucket_website_configuration" "frontend_website" {
+  bucket = aws_s3_bucket.frontend_bucket.id
+
+  index_document {
+    suffix = "index.html"
+  }
+
+  error_document {
+    key = "index.html"  # Important for SPA routing
+  }
+}
+
+# Public access configuration for website
+resource "aws_s3_bucket_public_access_block" "frontend_pab" {
+  bucket = aws_s3_bucket.frontend_bucket.id
+
+  block_public_acls       = true
+  block_public_policy     = false  # Allow public policy for website
+  ignore_public_acls      = true
+  restrict_public_buckets = false  # Allow public bucket for website
+}
+
+# Public read policy for website
+resource "aws_s3_bucket_policy" "frontend_policy" {
+  bucket = aws_s3_bucket.frontend_bucket.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Sid       = "PublicReadGetObject"
+        Effect    = "Allow"
+        Principal = "*"
+        Action    = "s3:GetObject"
+        Resource  = "${aws_s3_bucket.frontend_bucket.arn}/*"
+      }
+    ]
+  })
+
+  depends_on = [aws_s3_bucket_public_access_block.frontend_pab]
+}
+
+# ============================================================================
+# GOVCLOUD OUTPUTS (NO CLOUDFRONT)
+# ============================================================================
+
+output "frontend_url" {
+  description = "Frontend S3 Website URL (HTTP)"
+  value       = "http://${aws_s3_bucket_website_configuration.frontend_website.website_endpoint}"
+}
+
+output "frontend_bucket" {
+  description = "Frontend S3 bucket name"
+  value       = aws_s3_bucket.frontend_bucket.id
 }
